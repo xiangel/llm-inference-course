@@ -52,6 +52,8 @@ Prefill 的输出有两样东西：
 
 之后每一步 Decode 只吃 **一个** 新 token，从 Cache 里读历史 $K,V$，把新的 $k_t, v_t$ 追加进去。TTFT（Time To First Token）几乎就是 Prefill 的时间；后面的 TPOT（Time Per Output Token）是 Decode 步的时间。产品上「首字慢、后面稳」通常不是 bug，是这两段的物理差异。
 
+<KvCacheFlow />
+
 <div class="callout insight">
 <span class="label">要点</span>
 Prefill 在算一个大 GEMM + 一段 S×S Attention；Decode 在反复把整份权重从 HBM 搬出来，只为生产 1 个 token。优化杠杆因此不同：Prefill 吃算力融合和切块；Decode 吃量化、更大的 batch、以及少搬 KV。

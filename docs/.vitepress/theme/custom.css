@@ -228,3 +228,67 @@ input[type="range"] {
   color: var(--vp-c-bg);
   text-decoration: none;
 }
+
+.flow-figure {
+  overflow-x: auto;
+  margin: 1.4rem 0;
+  padding: 1rem;
+  border: 1px solid var(--vp-c-border);
+  border-radius: 16px;
+  background: var(--vp-c-bg-elv);
+}
+
+.flow-figure figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-bottom: 0.75rem;
+  color: var(--vp-c-text-2);
+  font-size: 12px;
+}
+
+.flow-figure figcaption span {
+  color: var(--vp-c-text-1);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.flow-figure svg {
+  display: block;
+  width: 100%;
+  min-width: 660px;
+  color: var(--vp-c-text-2);
+}
+
+.flow-node {
+  stroke: var(--vp-c-border);
+  stroke-width: 1.2;
+}
+
+.flow-node.input { fill: rgba(125, 211, 199, 0.10); stroke: rgba(125, 211, 199, 0.45); }
+.flow-node.token { fill: rgba(138, 180, 248, 0.10); stroke: rgba(138, 180, 248, 0.45); }
+.flow-node.embed { fill: rgba(196, 146, 58, 0.10); stroke: rgba(228, 181, 106, 0.45); }
+.flow-node.model { fill: url(#modelFill); stroke: rgba(228, 181, 106, 0.5); }
+.flow-node.output { fill: rgba(196, 146, 58, 0.13); stroke: rgba(228, 181, 106, 0.58); }
+.flow-node.sample { fill: rgba(125, 211, 199, 0.11); stroke: rgba(125, 211, 199, 0.52); }
+.flow-node.cache { fill: rgba(198, 139, 255, 0.10); stroke: rgba(198, 139, 255, 0.54); }
+
+.flow-line,
+.flow-return {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  marker-end: url(#arrow);
+}
+
+.kv-flow .flow-line,
+.kv-flow .flow-return {
+  marker-end: url(#kv-arrow);
+}
+
+.flow-return { stroke: var(--vp-c-brand-1); stroke-dasharray: 5 4; }
+.flow-title { fill: var(--vp-c-text-1); font-size: 14px; font-weight: 600; }
+.flow-sub { fill: var(--vp-c-text-2); font-size: 11px; }
+.flow-note { fill: var(--vp-c-text-2); font-size: 11px; }
+.flow-kicker { fill: var(--vp-c-brand-1); font-size: 12px; font-weight: 600; }
+.flow-explain { fill: var(--vp-c-text-2); font-size: 12px; }

@@ -53,6 +53,8 @@ Transformer 可以把它理解成一个“根据前文猜下一个词”的机�
 
 这里的 **Decoder-only** 指“只能看左边，不能偷看右边”。生成「今天天气很 _」时，模型只能参考已经出现的「今天天气很」，不能先看答案。这条限制由 Attention 里的因果遮罩（causal mask）实现。
 
+<TransformerFlow />
+
 <div class="callout insight">
 <span class="label">一个简单比喻</span>
 把每个 token 当成会议室里的一位参会者。Attention 让当前参会者查看前面所有人的发言，并决定谁更重要；FFN 则让它独自整理听到的信息。经过多轮会议后，最后一位参会者投票选出下一个词。
@@ -60,7 +62,7 @@ Transformer 可以把它理解成一个“根据前文猜下一个词”的机�
 
 ## Decoder-only 数据流
 
-现在来看 Block 内部。Llama / Qwen 把 LayerNorm 换成 RMSNorm，把 GELU FFN 换成 SwiGLU，把绝对位置换成 RoPE，但整体骨架没有改变。
+上图是模型整体；现在把视线收进 Transformer Block 内部。Llama / Qwen 把 LayerNorm 换成 RMSNorm，把 GELU FFN 换成 SwiGLU，把绝对位置换成 RoPE，但整体骨架没有改变。
 
 <DecoderDiagram />
 

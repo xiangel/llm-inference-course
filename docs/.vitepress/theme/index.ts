@@ -8,6 +8,8 @@ import Checklist from "./components/Checklist.vue";
 import Roadmap from "./components/Roadmap.vue";
 import DecoderDiagram from "./components/DecoderDiagram.vue";
 import PrefillDecodeDiagram from "./components/PrefillDecodeDiagram.vue";
+import TransformerFlow from "./components/TransformerFlow.vue";
+import KvCacheFlow from "./components/KvCacheFlow.vue";
 import ComingSoon from "./components/ComingSoon.vue";
 import "./custom.css";
 
@@ -22,6 +24,8 @@ export default {
     app.component("Roadmap", Roadmap);
     app.component("DecoderDiagram", DecoderDiagram);
     app.component("PrefillDecodeDiagram", PrefillDecodeDiagram);
+    app.component("TransformerFlow", TransformerFlow);
+    app.component("KvCacheFlow", KvCacheFlow);
     app.component("ComingSoon", ComingSoon);
   },
 } satisfies Theme;
