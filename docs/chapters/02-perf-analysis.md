@@ -49,52 +49,40 @@ batch 把后者抬上去，几乎一定伤害前者。第 5 章的 continuous ba
 
 Roofline 把硬件画成两段屋顶：
 
-1. **带宽屋顶**：可达 FLOP/s $= \text{算术强度} \times \text{带宽}$
-2. **算力屋顶**：可达 FLOP/s $= \text{峰值算力}$
+1. **斜线段（带宽限制）**：数据搬得越快，能完成的计算才越多。
+2. **水平段（算力限制）**：即使数据已经够快，计算单元也有每秒最多能完成的工作量。
 
-两条线的交点叫 **ridge point** $= \text{峰值算力} / \text{带宽}$。工作负载的算术强度在交点左边，就是 memory-bound；在右边，就是 compute-bound。
+两条线的交点叫 **ridge point（脊点）**。它表示“每搬 1 byte 数据，至少要做多少次计算，GPU 的计算单元才不会闲着”。工作负载在脊点左边，就是 memory-bound；在右边，就是 compute-bound。
 
 $$
 \text{Arithmetic Intensity} = \frac{\text{FLOPs}}{\text{bytes moved}}
 $$
 
+这是本章唯一需要记住的公式。分子 **FLOPs** 是完成任务所做的计算次数；分母 **bytes moved** 是从显存读取和写入的数据量。结果的单位是 “FLOP/byte”。它不是速度，而是一张“这件事更缺计算还是更缺带宽”的诊断单。
+
 H100 SXM 的粗画像（FP16 Tensor Core，不计稀疏）：
 
 - 峰值 $\approx 989$ TFLOP/s
 - HBM 带宽 $\approx 3.35$ TB/s
-- ridge $\approx 295$ FLOP/byte
+- 脊点约 **295 FLOP/byte**（用峰值算力除以带宽得到）
 
-A100 80GB 大约 $312 / 2.0 \approx 156$ FLOP/byte。消费卡的脊点往往更靠左，因为带宽相对更差——所以「在 4090 上 decode 已经带宽受限」并不意外。
+A100 80GB 的脊点约 156 FLOP/byte。消费卡的脊点往往更靠左，因为带宽相对更差——所以「在 4090 上 decode 已经带宽受限」并不意外。
 
 Horace He 的 [Making Deep Learning Go Brrrr](https://horace.io/brrr_intro.html) 把这件事讲成工程师的直觉：你看到的 kernel 时间，要么在等 ALU，要么在等总线。中间不存在第三种魔法。
 
 ## 为什么 Prefill 和 Decode 站在屋顶两侧
 
-只保留主项：读一遍权重，做一遍与 token 数相关的 GEMM。令 $N$ 为参数量，$e$ 为每参数字节，$S$ 为 Prefill 长度，$B$ 为 batch。
+先只看最主要的事：读权重、做矩阵乘。暂时忽略 Attention 的额外读写。这里会提到四个量：参数量、每个参数的字节数、prompt 长度和 batch 大小。
 
 **Decode（每步 1 token）**
 
-$$
-\mathrm{FLOPs} \approx 2N, \qquad \mathrm{bytes} \approx eN \implies \mathrm{AI} \approx \frac{2}{e}
-$$
+生成一个 token 时，8B 模型几乎要把 16 GB 的 FP16 权重读一遍，但每个权重只做一次乘加。因此算术强度约为 **1 FLOP/byte**，离 H100 的 295 低了两个数量级。KV Cache 还会增加读取量，让情况更偏向带宽受限。
 
-FP16 时 $\mathrm{AI} \approx 1$。离 295 差两个数量级。KV 会再加一项 $2 L H_{kv} d \cdot t \cdot e$ 的读取，把强度打得更低。
-
-理论 Decode 速率（还没算 kernel 效率）是
-
-$$
-\text{tok/s} \approx \frac{\text{带宽}}{eN}
-$$
-
-8B、FP16、$eN \approx 16$ GB，H100 上 $\approx 3.35\ \mathrm{TB/s} / 16\ \mathrm{GB} \approx 210$ tok/s。这是 **batch=1 的天花板**，不是你在 notebook 里能立刻摸到的数；真实 kernel 还有启动开销、碎片访问、采样。但它告诉你：换一张「TFLOP 翻倍、带宽不变」的卡，这条上限几乎不动。
+估算 Decode 上限的简单方法是：**显存带宽 ÷ 每步要读取的字节数**。8B FP16 权重约 16 GB，H100 带宽约 3.35 TB/s，得到约 **210 token/s**。这是 batch=1 的理想天花板，不是实际承诺：真实情况还会扣掉 KV、kernel 启动、碎片访问和采样开销。但它说明了一点：换一张算力翻倍、带宽不变的卡，Decode 上限几乎不动。
 
 **Prefill**
 
-$$
-\mathrm{FLOPs} \approx 2N \cdot S \cdot B, \qquad \mathrm{bytes} \approx eN \implies \mathrm{AI} \approx \frac{2SB}{e}
-$$
-
-$S=2048, B=1, e=2$ 时 $\mathrm{AI} \approx 2048$，已经在脊点右侧。更长的 prompt、更大的 batch，Prefill 更偏 compute-bound。这也是为什么：
+Prefill 一次要处理整个 prompt。比如 2K token 的 prompt：同一份权重会被复用来处理 2K 个位置，而不是只服务 1 个新 token。于是它的算术强度很容易超过 H100 的脊点，转而受计算能力限制。更长的 prompt、更大的 batch，都让 Prefill 更偏 compute-bound。这也是为什么：
 
 - Prefill 能从 FlashAttention、更好的 GEMM 融合里拿到接近峰值的利用率；
 - Decode 从同样这些 kernel 里拿到的是 **更少的 HBM 往返**，不是更高的 TFLOP。
@@ -110,22 +98,22 @@ Attention 自身还有 $O(S^2)$ 的计算和（未融合时）多次中间结果
 建议操作：
 
 1. 保持 8B FP16，把 Prefill 从 128 拖到 4096，观察点何时越过 ridge。
-2. 把权重改成 INT4（$e=0.5$）。Decode AI 变成 4，仍然在斜线上，但理论上限 tok/s 大约翻 4 倍——这就是量化对 Decode 的主收益：**少搬字节**。
+2. 把权重改成 INT4（每个参数 0.5 字节）。Decode 仍在斜线上，但理论上限约翻 4 倍——这就是量化对 Decode 的主收益：**少搬字节**。
 3. 换成 L4（带宽只有 ~0.3 TB/s）。同样 8B FP16，天花板会难看到让你重新考虑要不要上量化或更小的模型。
 
 ## 手算：H100 上 8B 能有多快
 
 把数字写在纸上，不要打开实验室。
 
-**已知：** Llama 3 8B $\approx 8 \times 10^9$ 参数；H100 带宽 $3.35 \times 10^{12}$ B/s；FP16。
+**已知：** Llama 3 8B 约有 80 亿参数；H100 带宽约 3.35 TB/s；使用 FP16。
 
-1. 权重大小 $eN = 2 \times 8e9 = 16$ GB。
-2. batch=1 Decode 上限 $3.35e12 / 16e9 \approx 209$ tok/s。对应 TPOT $\approx 4.8$ ms。
-3. 若 KV 已有 8K token：第 1 章算过 KV $\approx 1$ GB。每步还要多读 1 GB，上限变成 $3.35e12 / 17e9 \approx 197$ tok/s。8K 时 KV 还不是主犯。
-4. 若 context 拉到 128K：KV $\approx 16$ GB，和权重一样大，上限腰斩到 ~105 tok/s。
+1. FP16 的每个参数要 2 字节，因此权重大小约 16 GB。
+2. 用 **3.35 TB/s ÷ 16 GB**，得到 batch=1 的理想上限约 209 tok/s；这相当于每个 token 最少约 4.8 ms。
+3. 若 KV 已有 8K token：第 1 章算过 KV 约 1 GB。每步还要多读 1 GB，理想上限约 197 tok/s。8K 时 KV 还不是主犯。
+4. 若 context 拉到 128K：KV 约 16 GB，和权重一样大，理想上限降到约 105 tok/s。
 5. batch=32、仍假设权重只读一次、KV 按 32 路相加——权重项被 32 个 token 分摊，Decode 开始「像一点 Prefill」。这是吞吐上去、单请求 TPOT 下来的来源。Orca 的连续批处理，本质是让这张卡尽量不要在 batch=1 的斜线上空转。
 
-把第 4 步再换 INT4 权重（约 4 GB）+ FP16 KV（16 GB）：总读取 20 GB，上限 $\approx 167$ tok/s。**只向量化权重、不管 KV，长上下文下收益会迅速消失。** 这就是为什么 KV 量化会在第 4 章作为独立主题出现。
+把第 4 步再换 INT4 权重（约 4 GB）+ FP16 KV（16 GB）：总读取约 20 GB，理想上限约 167 tok/s。**只向量化权重、不管 KV，长上下文下收益会迅速消失。** 这就是为什么 KV 量化会在第 4 章作为独立主题出现。
 
 <div class="callout math">
 <span class="label">推导</span>

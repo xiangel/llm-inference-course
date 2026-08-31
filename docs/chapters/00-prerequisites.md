@@ -66,39 +66,34 @@ Transformer 可以把它理解成一个“根据前文猜下一个词”的机�
 
 <DecoderDiagram />
 
-一次完整前向，对长度为 $S$ 的序列：
+一次完整前向，对一段长度为 `S` 的输入：
 
-1. Token id $\rightarrow$ embedding，得到 $X \in \mathbb{R}^{B \times S \times D}$。
-2. 每一层：Attention + FFN，形状保持 $B \times S \times D$。
-3. 最后 RMSNorm + `lm_head`，得到 $B \times S \times V$ 的 logits。
+1. Token ID 经过 embedding，变成一个三维数组：`(batch, token 数, hidden size)`。
+2. 每一层 Attention + FFN 处理这个数组，但不会改变它的外形。
+3. 最后的 `lm_head` 为每个位置输出一份“词表分数表”；最后一个位置的分数用来选下一个 token。
 
 推理时我们通常只要 **最后一个位置** 的 logits。但 Prefill 阶段仍必须把 $S$ 个位置都算完，因为后面 Decode 要用到整段 KV。
 
 ## 张量形状清单
 
-第一次看可以不用背公式。先把 $D$ 理解成“每个 token 用多少个数字描述自己”，$H$ 理解成“Attention 同时从多少种角度看上下文”。配置文件里的 `n_embd` / `hidden_size` / `d_model`，指的都是 $D$。
+第一次看可以不用背公式。先把 `D` 理解成“每个 token 用多少个数字描述自己”，`H` 理解成“Attention 同时从多少种角度看上下文”。配置文件里的 `n_embd` / `hidden_size` / `d_model`，指的都是 `D`。
 
 | 符号 | 含义 | Llama 3 8B |
 | --- | --- | --- |
-| $B$ | batch | 由服务端调度决定 |
-| $S$ | 序列长度 | Prefill 时是 prompt 长 |
-| $D$ | hidden size | 4096 |
-| $H$ | query 头数 | 32 |
-| $H_{kv}$ | KV 头数（GQA） | 8 |
-| $d$ | head_dim $= D / H$ | 128 |
-| $L$ | 层数 | 32 |
-| $V$ | 词表 | 128256 |
+| `B` | batch | 由服务端调度决定 |
+| `S` | 序列长度 | Prefill 时是 prompt 长 |
+| `D` | hidden size | 4096 |
+| `H` | query 头数 | 32 |
+| `Hkv` | KV 头数（GQA） | 8 |
+| `d` | 每头的维度 | 128 |
+| `L` | 层数 | 32 |
+| `V` | 词表大小 | 128256 |
 
-一组必须能默写的形状：
+Q、K、V 都可以理解成“把同一份输入从不同角度改写后的向量”。它们的数组外形依次包含：batch、注意力头、token 数、每头维度。区别在于：Q 使用 32 个头；Llama 3 8B 的 K、V 只用 8 个头。
 
-$$
-Q \in \mathbb{R}^{B \times H \times S \times d},\quad
-K,V \in \mathbb{R}^{B \times H_{kv} \times S \times d}
-$$
+GQA 会把少量 K、V 头分给多个 Q 头使用。对推理最重要的结果是：**KV Cache 按 `Hkv` 计，不按 `H` 计。** 因此 Llama 3 8B 的 Cache 只有纯 MHA 设计约四分之一的大小。
 
-GQA 把 $K,V$ 按组重复到 $H$ 个头上再做 attention。对推理来说，这件事的全部意义是：**KV Cache 按 $H_{kv}$ 计，不按 $H$ 计。** Llama 3 8B 的 KV 因此是纯 MHA 的 $8/32 = 1/4$。
-
-FFN（SwiGLU）通常是两到三个 $D \times D_{ff}$ 的 GEMM，$D_{ff}$ 约为 $8/3 \cdot D$ 再对齐。参数量的大头在这里，不在 Attention 的 $QKV$ 投影——但 **Decode 的时间大头往往不在 FLOP，而在把这些权重从 HBM 搬到寄存器**。第 2 章会把这句话变成不等式。
+FFN 是 Block 里的另一个大部件。它会先把向量扩展到更宽的空间、做一次非线性变换、再压回原宽度。模型大部分参数通常在 FFN 里；但 Decode 的时间大头常常不是做计算，而是把这些权重从显存搬到计算单元。第 2 章会解释原因。
 
 <div class="callout warn">
 <span class="label">易错</span>
@@ -107,12 +102,12 @@ FFN（SwiGLU）通常是两到三个 $D \times D_{ff}$ 的 GEMM，$D_{ff}$ 约�
 
 ## RoPE 与推理
 
-RoPE 把位置写进 $Q$ 和 $K$ 的复数旋转里，而不是加在 embedding 上。推理时有两个直接后果：
+RoPE 把位置信息写进 Q 和 K 的旋转里，而不是简单加在 embedding 上。推理时有两个直接后果：
 
-1. **可以增量计算。** 新 token 只旋转自己的 $q_t, k_t$，历史 $K$ 已经在 Cache 里带着正确的位置。
+1. **可以增量计算。** 新 token 只旋转自己的 Q、K；历史 K 已经在 Cache 里带着正确的位置。
 2. **外推不是免费的。** 训练长度之外的位置，旋转角度会走到模型没见过的区域。YaRN、NTK-aware scaling、位置插值，都是在修这件事。本课到长上下文章节再展开。
 
-实现上你会看到两种写法：`complex64` 视图，或把偶/奇维拆开做 `cos/sin`。对形状没有影响——RoPE 不改变 $Q,K$ 的 $(B,H,S,d)$。
+实现上你会看到两种写法：`complex64` 视图，或把偶/奇维拆开做 `cos/sin`。对数组形状没有影响。
 
 ## GPU：算力、带宽、Roofline 预告
 
@@ -124,15 +119,9 @@ RoPE 把位置写进 $Q$ 和 $K$ 的复数旋转里，而不是加在 embedding 
 | 显存带宽 | 每秒最多从 HBM 搬多少字节 | ~3.35 TB/s |
 | 显存容量 | 权重 + KV + 激活还能不能放下 | 80 GB |
 
-**算术强度** $=$ 完成这些计算需要的 FLOP / 需要搬的字节。强度高，瓶颈在算力；强度低，瓶颈在带宽。
+**算术强度** 是“做了多少计算 ÷ 搬了多少数据”。强度高，GPU 更可能忙着计算；强度低，GPU 更可能在等显存。
 
-粗算一个 Decode 步（batch = 1，忽略 Attention 的额外 IO）：
-
-- FLOP $\approx 2N$（每个参数一次乘加）
-- 字节 $\approx 2N$（FP16 下每个参数 2 字节）
-- 强度 $\approx 1$ FLOP/byte
-
-H100 的「屋顶脊点」大约是 $989 / 3.35 \approx 295$ FLOP/byte。Decode 的 1 离 295 差了两个数量级——所以它几乎一定是 **memory-bound**。第 2 章会把这条曲线画出来，并解释为什么 Prefill 可以翻到脊点右侧。
+以 FP16、单条请求的 Decode 为例：模型每生成一个 token，通常都要读一遍权重；每个权重只参与一次乘加。这导致它的算术强度大约只有 1 FLOP/byte。H100 需要接近 295 FLOP/byte 才能把计算单元喂满，因此 Decode 几乎一定是 **memory-bound**。第 2 章会用图把这个判断讲清楚。
 
 现在只需要记住一句话：**推理优化的默认假说是「在搬数据，不是在算」。** 任何声称加速的技术，都应该能指出它少搬了什么，或把算术强度抬到了哪。
 

@@ -63,24 +63,9 @@ Prefill 在算一个大 GEMM + 一段 S×S Attention；Decode 在反复把整份
 
 先说人话：Attention 每次都需要“当前 token 对历史每个 token 的 Key 和 Value”。历史 token 的 Key 和 Value 一旦算出就不会变，因此把它们保存在显存里，下次直接拿来用，而不是重新计算。这块保存空间就是 KV Cache。
 
-第 $t$ 步，第 $\ell$ 层：
+对任意一个新 token，模型会新算出一小份 K 和 V。Cache 的工作很简单：保留旧 token 的 K、V，再把这一小份新 K、V 追加在末尾。第 5 个 token 到来后，Cache 里就有前 5 个 token 的 K、V。
 
-$$
-q_t = x_t W_Q,\quad k_t = x_t W_K,\quad v_t = x_t W_V
-$$
-
-$$
-K_{1:t} = [K_{1:t-1};\ k_t],\quad
-\mathrm{Attn}(q_t, K_{1:t}, V_{1:t})
-$$
-
-Cache 存的就是每层的 $K_{1:t}, V_{1:t}$。形状是
-
-$$
-(B,\ H_{kv},\ t,\ d)
-$$
-
-把所有层加起来，乘上 Key/Value 两份和每元素字节，就得到文首的公式。
+对程序而言，一层 Cache 可以看作一个四维数组：`(batch, KV 头数, 已缓存 token 数, 每头维度)`。把这样的数组放在所有层里，就得到文首的显存估算式。
 
 ### 公式里的每个变量是什么
 
@@ -98,18 +83,24 @@ $$
 | $B$ | batch size | 同时服务多少条请求；每条都有自己的 Cache | 1 |
 | $e$ | 每元素字节数 | FP16/BF16 是 2；FP8/INT8 是 1；INT4 是 0.5 | 2 |
 
-因此最简单的读法是：**先算一个 token、一层、一个 KV 头要占多少字节，再把它乘到所有层、所有 token、所有请求上。**
+如何读这条公式：
+
+1. 先算一个 token 在一层、一个 KV 头上要放多少数字（`d`）。
+2. 因为要存 K 和 V，乘以 `2`；再乘每个数字占的字节数 `e`。
+3. 同样的数据要在 `Hkv` 个头、`L` 层、`S` 个 token、`B` 条请求里各存一份，因此逐个相乘。
+
+它只回答“KV Cache 本身占多少显存”。**不包括**模型权重、临时激活、CUDA 缓存和框架的预留空间，所以部署时必须预留余量。
 
 **心算：Llama 3 8B，FP16，batch = 1**
 
-- $L=32,\ H_{kv}=8,\ d=128,\ e=2$
-- 每 token：$2 \times 32 \times 8 \times 128 \times 2 = 131072$ 字节 $= 128\ \mathrm{KB}$
-- 8K context：$128\ \mathrm{KB} \times 8192 = 1\ \mathrm{GB}$
-- 128K context：$16\ \mathrm{GB}$——已经和一份 8B 的 FP16 权重（约 16 GB）相当
+- 代入：32 层、8 个 KV 头、每头 128 个数、FP16（每个数 2 字节）。
+- 每增加 1 个 token，所有层合计多占约 **128 KB**。
+- 到 8K context，Cache 约 **1 GB**。
+- 到 128K context，Cache 约 **16 GB**——已经和一份 8B FP16 权重差不多大。
 
-70B 用 GQA 后 $H_{kv}$ 仍是 8，但层数是 80，每 token 变成 $320\ \mathrm{KB}$。长上下文下 **KV 会超过权重**。这就是为什么第 4 章要量化 KV、第 5 章要分页、第 8 章要把 KV 当成集群里的一等资源。
+70B 用 GQA 后 KV 头数仍是 8，但层数增加到 80；每个 token 的 Cache 会到约 **320 KB**。长上下文下 **KV 会超过权重**。这就是为什么第 4 章要量化 KV、第 5 章要分页、第 8 章要把 KV 当成集群里的一等资源。
 
-把 $H_{kv}$ 换成 $H$ 再算一遍纯 MHA 的 7B：每 token 会回到约 $512\ \mathrm{KB}$（$H=32$）。GQA 不是精度技巧，是推理系统能活下来的架构选择。DeepSeek 的 MLA 走得更远，把 KV 压进低秩潜变量——那是第 3 章的故事。
+把 KV 头数从 8 改成 32（纯 MHA 的常见情况），同量级模型每个 token 的 Cache 会到约 **512 KB**。GQA 不是精度技巧，是推理系统能活下来的架构选择。DeepSeek 的 MLA 走得更远，把 KV 压进低秩潜变量——那是第 3 章的故事。
 
 ## 交互工具：显存计算器
 
@@ -117,14 +108,10 @@ $$
 
 <KvCalculator />
 
-$$
-\mathrm{KV} = 2 \cdot n_{\text{layers}} \cdot n_{\text{kv}} \cdot d_{\text{head}} \cdot s \cdot b \cdot e
-$$
-
 建议自己做的三次计算：
 
 1. 8B，FP16，batch=1，4K / 32K / 128K 各是多少 KV。
-2. 同一设置改 FP8 KV，$e: 2\to 1$，容量直接翻倍。
+2. 同一设置改 FP8 KV。每个元素从 2 字节减到 1 字节，容量直接翻倍。
 3. 70B，batch=8，8K——这已经是「一张 80 GB 卡未必放得下」的区域，后面会看到为什么服务端要用 paging 而不是按 `max_seq_len` 预留整块。
 
 ## 采样：从 greedy 到 nucleus
@@ -135,21 +122,21 @@ $$
 
 | 方法 | 做什么 | 典型用途 |
 | --- | --- | --- |
-| Greedy | $\arg\max_i z_i$ | 确定性任务、评测复现 |
-| Temperature | $z \leftarrow z / \tau$ 再 softmax | $\tau<1$ 更尖，$\tau>1$ 更平 |
+| Greedy | 总是选分数最高的 token | 确定性任务、评测复现 |
+| Temperature | 调整分数差距后再转概率 | 小于 1 更保守；大于 1 更多样 |
 | Top-k | 只保留分数最高的 $k$ 个再归一化 | 砍掉长尾胡话 |
 | Top-p（nucleus） | 按概率从大到小累加到 $p$ | 随分布自适应截断 |
 
 Min-p、typical sampling 是同一家族的变体。服务框架里它们通常是 logits processor，插在前向和 `multinomial` 之间。
 
-下面这个小实验室用一组固定 logits，让你直接看 $\tau$、$k$、$p$ 如何改写分布。把 temperature 拉到 0.2 再拉到 1.8，观察熵。
+下面这个小实验室用一组固定分数，让你直接看 temperature、top-k、top-p 如何改写分布。把 temperature 拉到 0.2 再拉到 1.8，观察概率条的变化。
 
 <SamplingLab />
 
 实现时注意两件实现细节：
 
 1. **先 mask 再 softmax**，或等价地对被扔掉的位置填 `-inf`。先 softmax 再把概率置零，数值上会漏质量，需要重新归一化。
-2. **greedy 不是 $\tau \to 0$ 的采样。** 有的库会用很小的 $\tau$ 冒充 greedy，但 `argmax` 更干净，也避免 `exp` 下溢。
+2. **greedy 不是“把温度调到接近零”。** 有的库会用很小的温度冒充 greedy，但直接用 `argmax` 更干净，也避免数值问题。
 
 ```python
 import torch
