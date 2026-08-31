@@ -5,7 +5,7 @@
 仓库：[github.com/xiangel/llm-inference-course](https://github.com/xiangel/llm-inference-course)  
 线上：[xiangel.github.io/llm-inference-course](https://xiangel.github.io/llm-inference-course/)
 
-目前开放 **第 0–2 章**：一次 LLM 请求、Token 与上下文、Transformer 全貌。
+目前开放完整 **15 章**：从一次 LLM 请求、Token、Transformer 与 KV Cache，到 vLLM 服务化、nano-vLLM 源码阅读和毕业项目。
 
 ## 本地预览
 
@@ -39,7 +39,7 @@ npm run preview  # 预览构建结果
 
 | 阶段 | 章节 | 状态 |
 | --- | --- | --- |
-| A 基础直觉 | 0 一次 LLM 请求 · 1 Token 与上下文 · 2 Transformer 全貌 | 已开放 |
-| B 单卡优化 | 3 Attention kernel · 4 量化 | 即将上线 |
-| C 服务化 | 5 调度与分页 · 6 投机解码 | 即将上线 |
-| D 集群与前沿 | 7 分布式 · 8 PD 分离 · 9 Reasoning · 10 毕业项目 | 即将上线 |
+| A 基础直觉 | 0 请求 · 1 Token · 2 Transformer · 3 Attention | 已开放 |
+| B 推理基础 | 4 采样 · 5 KV Cache · 6 性能指标 · 7 GPU 瓶颈 | 已开放 |
+| C 推理服务与优化 | 8 部署 vLLM · 9 连续批处理 · 10 PagedAttention · 11 量化与投机解码 | 已开放 |
+| D 源码与毕业项目 | 12 nano-vLLM · 13 vLLM V1 · 14 毕业项目 | 已开放 |

@@ -62,29 +62,33 @@ export default defineConfig({
           { text: "第 0 章 一次 LLM 请求", link: "/chapters/00-prerequisites" },
           { text: "第 1 章 Token 与上下文", link: "/chapters/01-kv-cache" },
           { text: "第 2 章 Transformer 全貌", link: "/chapters/02-perf-analysis" },
+          { text: "第 3 章 Attention", link: "/chapters/03-flashattention" },
         ],
       },
       {
-        text: "阶段 B · 单卡优化",
+        text: "阶段 B · 推理基础",
         items: [
-          { text: "第 3 章 Attention 算子 · 即将上线", link: "/chapters/03-flashattention" },
-          { text: "第 4 章 量化 · 即将上线", link: "/chapters/04-quantization" },
+          { text: "第 4 章 生成与采样", link: "/chapters/04-quantization" },
+          { text: "第 5 章 KV Cache", link: "/chapters/05-serving" },
+          { text: "第 6 章 性能指标", link: "/chapters/06-speculative" },
+          { text: "第 7 章 GPU 瓶颈", link: "/chapters/07-distributed" },
         ],
       },
       {
-        text: "阶段 C · 服务化系统",
+        text: "阶段 C · 推理服务与优化",
         items: [
-          { text: "第 5 章 调度与分页 · 即将上线", link: "/chapters/05-serving" },
-          { text: "第 6 章 投机解码 · 即将上线", link: "/chapters/06-speculative" },
+          { text: "第 8 章 部署 vLLM", link: "/chapters/08-disaggregation" },
+          { text: "第 9 章 连续批处理", link: "/chapters/09-reasoning" },
+          { text: "第 10 章 PagedAttention", link: "/chapters/10-capstone" },
+          { text: "第 11 章 量化与投机解码", link: "/chapters/11-quantization-speculation" },
         ],
       },
       {
-        text: "阶段 D · 集群与前沿",
+        text: "阶段 D · 源码与毕业项目",
         items: [
-          { text: "第 7 章 分布式推理 · 即将上线", link: "/chapters/07-distributed" },
-          { text: "第 8 章 分离式服务 · 即将上线", link: "/chapters/08-disaggregation" },
-          { text: "第 9 章 Reasoning · 即将上线", link: "/chapters/09-reasoning" },
-          { text: "第 10 章 毕业项目 · 即将上线", link: "/chapters/10-capstone" },
+          { text: "第 12 章 nano-vLLM 源码", link: "/chapters/12-nano-vllm" },
+          { text: "第 13 章 vLLM V1 对照", link: "/chapters/13-vllm-v1" },
+          { text: "第 14 章 毕业项目", link: "/chapters/14-capstone" },
         ],
       },
     ],
@@ -92,7 +96,7 @@ export default defineConfig({
       { icon: "github", link: "https://github.com/xiangel/llm-inference-course" },
     ],
     footer: {
-      message: "第 0–2 章先行公开 · 使用 VitePress 构建，可发布到 GitHub Pages",
+      message: "完整 15 章课程 · 使用 VitePress 构建，可发布到 GitHub Pages",
       copyright: "课程内容以第一性原理为主线：KV Cache 是贯穿全课的第一等公民",
     },
     docFooter: {
