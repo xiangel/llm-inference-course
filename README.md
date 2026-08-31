@@ -29,6 +29,12 @@ npm run preview  # 预览构建结果
 
 项目站路径是 `/llm-inference-course/`，构建时已写入，不必再设变量。
 
+## 访问统计
+
+站点已内置 [Plausible Analytics](https://plausible.io/) 的页面浏览脚本，统计域名为 `xiangel.github.io`。登录 Plausible 后创建同名网站条目，即可在其仪表盘查看访问者、PV、来源和热门页面。
+
+浏览器广告拦截器可能阻止统计脚本；这不会影响课程网站本身。
+
 ## 课程结构
 
 | 阶段 | 章节 | 状态 |

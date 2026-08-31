@@ -17,6 +17,14 @@ export default defineConfig({
   head: [
     ["link", { rel: "icon", href: `${base === "/" ? "" : base}/favicon.svg` }],
     ["meta", { name: "theme-color", content: "#c4923a" }],
+    [
+      "script",
+      {
+        defer: "",
+        "data-domain": "xiangel.github.io",
+        src: "https://plausible.io/js/script.js",
+      },
+    ],
   ],
   markdown: {
     math: true,
