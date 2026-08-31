@@ -1,0 +1,14 @@
+{
+  "name": "llm-inference-course",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev docs --port 43217 --host 0.0.0.0",
+    "build": "vitepress build docs",
+    "preview": "vitepress preview docs --port 43217 --host 0.0.0.0"
+  },
+  "devDependencies": {
+    "markdown-it-mathjax3": "^4.3.2",
+    "vitepress": "^1.6.4"
+  }
+}
