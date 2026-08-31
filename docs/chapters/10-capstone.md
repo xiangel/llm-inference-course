@@ -19,8 +19,6 @@ description: 用小型块池模拟理解 KV Cache 如何分页分配、复用共
   ]"
 />
 
-<a class="colab-link" href="https://colab.research.google.com/github/xiangel/llm-inference-course/blob/main/notebooks/10_paged_kv_blocks.ipynb" target="_blank" rel="noreferrer">在 Google Colab 打开块池模拟器 ↗</a>
-
 ## 为什么
 
 每条生成请求的输出长度未知。若服务为它预留一块足以容纳最大长度的连续 KV Cache，短请求浪费大量空间；不同长度请求完成与加入后也会留下难以利用的碎片。KV Cache 是运行时状态，常常是并发上限的决定因素。
@@ -42,6 +40,8 @@ PagedAttention 将每条序列的 KV Cache 切为等大的逻辑块，再把逻�
 ### 1. 运行块池
 
 Notebook 创建固定数量的整数块，不存真实张量。`allocate(sequence_id)` 给序列一个块；当 token 数跨过 `block_size`，再分配一个；`free` 将它归还。打印 block table 和空闲列表。
+
+<a class="colab-link" href="https://colab.research.google.com/github/xiangel/llm-inference-course/blob/main/notebooks/10_paged_kv_blocks.ipynb" target="_blank" rel="noreferrer">在 Google Colab 打开块池模拟器 ↗</a>
 
 ### 2. 制造碎片
 

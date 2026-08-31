@@ -19,8 +19,6 @@ description: 看懂 Tokenizer 如何把文本变成 ID，以及 token 数如何�
   ]"
 />
 
-<a class="colab-link" href="https://colab.research.google.com/github/xiangel/llm-inference-course/blob/main/notebooks/01_tokens_and_context.ipynb" target="_blank" rel="noreferrer">在 Google Colab 打开并运行本章代码 ↗</a>
-
 ## 先看问题
 
 两个看似相同的需求，价格和速度可能不同：
@@ -90,6 +88,8 @@ Tokenizer 像压缩词典。词典里没有必要只收录单个字母或整词�
 ```
 
 核心代码：
+
+<a class="colab-link" href="https://colab.research.google.com/github/xiangel/llm-inference-course/blob/main/notebooks/01_tokens_and_context.ipynb" target="_blank" rel="noreferrer">在 Google Colab 打开并运行这段代码 ↗</a>
 
 ```python
 from transformers import AutoTokenizer

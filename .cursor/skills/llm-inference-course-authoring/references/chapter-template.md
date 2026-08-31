@@ -16,11 +16,6 @@ description: [用一句话说明程序员学完能做什么]
 
 <Checklist ... />
 
-<!-- Include this block only when this chapter has a runnable code lab. -->
-<a class="colab-link" href="[Colab URL]" target="_blank" rel="noreferrer">
-  在 Google Colab 打开并运行本章代码 ↗
-</a>
-
 ## 先看问题
 [一个具体场景、输入和可见的失败/成本。]
 
@@ -40,6 +35,11 @@ description: [用一句话说明程序员学完能做什么]
 <!-- Include the following section only when code materially improves learning. -->
 ## 动手：最小实验
 [先解释实验会显示什么。]
+
+<!-- Place the Colab link immediately before the related code block. -->
+<a class="colab-link" href="[Colab URL]" target="_blank" rel="noreferrer">
+  在 Google Colab 打开并运行这段代码 ↗
+</a>
 
 ```python
 # 仅放需要运行的最小代码

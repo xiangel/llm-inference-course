@@ -19,8 +19,6 @@ description: 用一个 CPU 调度模拟器理解为什么推理服务不应等�
   ]"
 />
 
-<a class="colab-link" href="https://colab.research.google.com/github/xiangel/llm-inference-course/blob/main/notebooks/09_continuous_batching.ipynb" target="_blank" rel="noreferrer">在 Google Colab 打开 CPU 调度模拟器 ↗</a>
-
 ## 为什么
 
 静态批处理会把一组请求绑在一起：短回答先完成后，它占的槽位只能闲着，直到最长回答结束。在线服务的请求长度和到达时间不可预测，GPU 因而会在可做工作时等待。
@@ -41,7 +39,9 @@ description: 用一个 CPU 调度模拟器理解为什么推理服务不应等�
 
 ### 1. 运行模拟器
 
-打开顶部 Colab。它创建若干带有 `arrival` 和 `remaining_tokens` 的请求；每个 tick 最多服务固定数量的活跃请求。输出会显示每个 tick 的活跃集合、完成事件和空槽数。
+它创建若干带有 `arrival` 和 `remaining_tokens` 的请求；每个 tick 最多服务固定数量的活跃请求。输出会显示每个 tick 的活跃集合、完成事件和空槽数。
+
+<a class="colab-link" href="https://colab.research.google.com/github/xiangel/llm-inference-course/blob/main/notebooks/09_continuous_batching.ipynb" target="_blank" rel="noreferrer">在 Google Colab 打开 CPU 调度模拟器 ↗</a>
 
 ### 2. 观察静态批处理
 

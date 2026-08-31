@@ -19,8 +19,6 @@ description: 从一段 Prompt 到逐字出现的回答：模型、权重、推�
   ]"
 />
 
-<a class="colab-link" href="https://colab.research.google.com/github/xiangel/llm-inference-course/blob/main/notebooks/00_first_llm_request.ipynb" target="_blank" rel="noreferrer">在 Google Colab 打开并运行本章代码 ↗</a>
-
 ## 先看问题
 
 你可能已经用过这样的代码：
@@ -85,6 +83,8 @@ Hugging Face 的 `pipeline()` 可以让你在一个 Python 进程里直接调用
 这不是为了得到高质量回答，而是为了看到完整链路。免费 CPU 可以运行。
 
 核心代码只有两步：
+
+<a class="colab-link" href="https://colab.research.google.com/github/xiangel/llm-inference-course/blob/main/notebooks/00_first_llm_request.ipynb" target="_blank" rel="noreferrer">在 Google Colab 打开并运行这段代码 ↗</a>
 
 ```python
 from transformers import pipeline

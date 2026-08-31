@@ -96,7 +96,7 @@ Never introduce more than one new formula in a section. Avoid derivations in the
 
 ### 5. Design code labs
 
-Only a chapter with a code-focused lab must have a matching notebook at `notebooks/<chapter>_<topic>.ipynb` and a visible Colab link near the top of its Markdown page. Do not create empty or token “example” notebooks for a conceptual chapter.
+Only a chapter with a code-focused lab must have a matching notebook at `notebooks/<chapter>_<topic>.ipynb`. Put its visible Colab link immediately before the relevant code snippet or numbered experiment step, never in the chapter introduction. Do not create empty or token “example” notebooks for a conceptual chapter.
 
 Labs must:
 
