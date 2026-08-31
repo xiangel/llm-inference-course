@@ -5,7 +5,7 @@
 仓库：[github.com/xiangel/llm-inference-course](https://github.com/xiangel/llm-inference-course)  
 线上：[xiangel.github.io/llm-inference-course](https://xiangel.github.io/llm-inference-course/)
 
-目前开放 **第 0–2 章**：Transformer 预备、KV Cache、性能分析（Roofline）。
+目前开放 **第 0–2 章**：一次 LLM 请求、Token 与上下文、Transformer 全貌。
 
 ## 本地预览
 
@@ -31,7 +31,7 @@ npm run preview  # 预览构建结果
 
 ## 访问统计
 
-站点已内置 [Plausible Analytics](https://plausible.io/) 的页面浏览脚本，统计域名为 `xiangel.github.io`。登录 Plausible 后创建同名网站条目，即可在其仪表盘查看访问者、PV、来源和热门页面。
+站点使用免费的 [Cloudflare Web Analytics](https://developers.cloudflare.com/web-analytics/) 统计页面浏览、访客、来源、热门页面和 Core Web Vitals。它通过手动 beacon 接入 GitHub Pages，并开启 SPA 路由统计。
 
 浏览器广告拦截器可能阻止统计脚本；这不会影响课程网站本身。
 
@@ -39,7 +39,7 @@ npm run preview  # 预览构建结果
 
 | 阶段 | 章节 | 状态 |
 | --- | --- | --- |
-| A 单请求原理 | 0 预备知识 · 1 KV Cache · 2 性能分析 | 已开放 |
+| A 基础直觉 | 0 一次 LLM 请求 · 1 Token 与上下文 · 2 Transformer 全貌 | 已开放 |
 | B 单卡优化 | 3 Attention kernel · 4 量化 | 即将上线 |
 | C 服务化 | 5 调度与分页 · 6 投机解码 | 即将上线 |
 | D 集群与前沿 | 7 分布式 · 8 PD 分离 · 9 Reasoning · 10 毕业项目 | 即将上线 |

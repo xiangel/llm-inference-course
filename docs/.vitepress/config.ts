@@ -20,9 +20,9 @@ export default defineConfig({
     [
       "script",
       {
-        defer: "",
-        "data-domain": "xiangel.github.io",
-        src: "https://plausible.io/js/script.js",
+        type: "module",
+        src: "https://static.cloudflareinsights.com/beacon.min.js",
+        "data-cf-beacon": '{"token":"5eed777106234f33b399a5324579af6c","spa":true}',
       },
     ],
   ],
