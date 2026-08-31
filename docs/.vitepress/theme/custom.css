@@ -286,6 +286,16 @@ input[type="range"] {
   marker-end: url(#kv-arrow);
 }
 
+.request-flow .flow-line,
+.request-flow .flow-return {
+  marker-end: url(#request-arrow);
+}
+
+.token-flow .flow-line,
+.token-flow .flow-return {
+  marker-end: url(#token-arrow);
+}
+
 .flow-return { stroke: var(--vp-c-brand-1); stroke-dasharray: 5 4; }
 .flow-title { fill: var(--vp-c-text-1); font-size: 14px; font-weight: 600; }
 .flow-sub { fill: var(--vp-c-text-2); font-size: 11px; }

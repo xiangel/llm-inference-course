@@ -10,6 +10,8 @@ import DecoderDiagram from "./components/DecoderDiagram.vue";
 import PrefillDecodeDiagram from "./components/PrefillDecodeDiagram.vue";
 import TransformerFlow from "./components/TransformerFlow.vue";
 import KvCacheFlow from "./components/KvCacheFlow.vue";
+import RequestLifecycleFlow from "./components/RequestLifecycleFlow.vue";
+import TokenFlow from "./components/TokenFlow.vue";
 import ComingSoon from "./components/ComingSoon.vue";
 import "./custom.css";
 
@@ -26,6 +28,8 @@ export default {
     app.component("PrefillDecodeDiagram", PrefillDecodeDiagram);
     app.component("TransformerFlow", TransformerFlow);
     app.component("KvCacheFlow", KvCacheFlow);
+    app.component("RequestLifecycleFlow", RequestLifecycleFlow);
+    app.component("TokenFlow", TokenFlow);
     app.component("ComingSoon", ComingSoon);
   },
 } satisfies Theme;

@@ -1,281 +1,150 @@
 ---
-title: 第 0 章 · 预备知识
-description: Decoder-only Transformer 的数据流、张量形状、RoPE，以及 GPU 的算力/带宽画像。
+title: 第 0 章 · 一次 LLM 请求
+description: 从一段 Prompt 到逐字出现的回答：模型、权重、推理服务和 Tokenizer 各做什么。
 ---
 
-# 第 0 章 · 预备知识：Transformer 与 GPU
+# 第 0 章 · 一次 LLM 请求发生了什么
 
-**学时** 4–6 小时 · **阶段 A** 单请求原理 · 不需要 GPU
+**学时** 1–2 小时 · **需要** Python 与免费 Colab · **本章不讲** Transformer 内部和 GPU 优化
 
-这一章先用最朴素的方式回答三个问题：Transformer 是什么、它如何从一句话预测下一个词、以及大模型为什么要用 GPU。读完后，再去看 Llama 或 Qwen 的代码会轻松很多。
+一句话回答：**当 Python 程序把一段 Prompt 发给模型后，谁把它变成答案？**
 
 <Checklist
-  slug="00-prerequisites"
+  slug="00-first-request"
   :items="[
-    { id: 'read-decoder', label: '读完 Decoder-only 与张量形状' },
-    { id: 'run-mingpt', label: '跑通最小 GPT 前向并核对形状' },
-    { id: 'quiz-0', label: '完成第 0 章自测' }
+    { id: 'name-parts', label: '能说清模型、权重、Tokenizer 和推理服务的区别' },
+    { id: 'run-first-request', label: '在 Colab 中跑通一次最小文本生成' },
+    { id: 'trace-flow', label: '能按图复述请求和响应的路径' },
+    { id: 'quiz-0-new', label: '完成本章自测' }
   ]"
 />
 
-<a class="colab-link" href="https://colab.research.google.com/github/xiangel/llm-inference-course/blob/main/notebooks/00_transformer_basics.ipynb" target="_blank" rel="noreferrer">在 Google Colab 打开并运行本章代码 ↗</a>
+<a class="colab-link" href="https://colab.research.google.com/github/xiangel/llm-inference-course/blob/main/notebooks/00_first_llm_request.ipynb" target="_blank" rel="noreferrer">在 Google Colab 打开并运行本章代码 ↗</a>
 
-## 为什么从这里开始
+## 先看问题
 
-推理系统和训练系统看 Transformer 的方式不一样。
-
-训练关心：梯度能否稳定、数据吞吐、ZeRO 把优化器状态放哪。推理关心的几乎全是另一张清单：
-
-- 每个新 token 要读多少权重？
-- KV Cache 随序列如何膨胀？
-- Prefill 一次能吃多长的 prompt，而不把 Decode 饿死？
-
-这些数字全部由 **层数、头数、head_dim、精度** 决定。所以第 0 章先把「形状」钉死，第 1 章才有资格谈 Cache，第 2 章才有资格谈瓶颈。
-
-::: tip 学习约定
-本课默认 Decoder-only（GPT / Llama / Qwen / DeepSeek 这一路）。Encoder-decoder（T5）和纯 Encoder（BERT）只在需要对比时出现。
-:::
-
-## Transformer 整体架构：先看全图
-
-Transformer 可以把它理解成一个“根据前文猜下一个词”的机器。假设输入是「今天天气很」，它会给词表中的每一个词一个分数：`好` 可能最高，`糟糕` 也有一些可能。我们按照这些分数选出一个新词，然后把新词接到句子后面，重复这个过程。
-
-一个 Decoder-only Transformer 的整体流水线只有四步：
-
-1. **分词（Tokenizer）**：把文字变成整数 ID，例如「今天天气很」→ `[123, 456, 789]`。
-2. **词向量（Embedding）**：把每个整数 ID 查表，变成一串浮点数；这就是模型真正处理的输入。
-3. **多层 Transformer Block**：每层有两部分。Attention 让一个词查看它之前的词；FFN 则独立地加工每个位置的信息。两者之间都有残差连接，避免信息在深层网络里消失。
-4. **输出层（LM Head）**：把最后一个位置的向量映射到整个词表，得到下一个 token 的概率分布。
-
-```text
-文字 → Token IDs → Embedding → [Attention + FFN] × L 层 → LM Head → 下一个 token 的概率
-```
-
-这里的 **Decoder-only** 指“只能看左边，不能偷看右边”。生成「今天天气很 _」时，模型只能参考已经出现的「今天天气很」，不能先看答案。这条限制由 Attention 里的因果遮罩（causal mask）实现。
-
-<TransformerFlow />
-
-<div class="callout insight">
-<span class="label">一个简单比喻</span>
-把每个 token 当成会议室里的一位参会者。Attention 让当前参会者查看前面所有人的发言，并决定谁更重要；FFN 则让它独自整理听到的信息。经过多轮会议后，最后一位参会者投票选出下一个词。
-</div>
-
-## Decoder-only 数据流
-
-上图是模型整体；现在把视线收进 Transformer Block 内部。Llama / Qwen 把 LayerNorm 换成 RMSNorm，把 GELU FFN 换成 SwiGLU，把绝对位置换成 RoPE，但整体骨架没有改变。
-
-<DecoderDiagram />
-
-一次完整前向，对一段长度为 `S` 的输入：
-
-1. Token ID 经过 embedding，变成一个三维数组：`(batch, token 数, hidden size)`。
-2. 每一层 Attention + FFN 处理这个数组，但不会改变它的外形。
-3. 最后的 `lm_head` 为每个位置输出一份“词表分数表”；最后一个位置的分数用来选下一个 token。
-
-推理时我们通常只要 **最后一个位置** 的 logits。但 Prefill 阶段仍必须把 $S$ 个位置都算完，因为后面 Decode 要用到整段 KV。
-
-## 张量形状清单
-
-第一次看可以不用背公式。先把 `D` 理解成“每个 token 用多少个数字描述自己”，`H` 理解成“Attention 同时从多少种角度看上下文”。配置文件里的 `n_embd` / `hidden_size` / `d_model`，指的都是 `D`。
-
-| 符号 | 含义 | Llama 3 8B |
-| --- | --- | --- |
-| `B` | batch | 由服务端调度决定 |
-| `S` | 序列长度 | Prefill 时是 prompt 长 |
-| `D` | hidden size | 4096 |
-| `H` | query 头数 | 32 |
-| `Hkv` | KV 头数（GQA） | 8 |
-| `d` | 每头的维度 | 128 |
-| `L` | 层数 | 32 |
-| `V` | 词表大小 | 128256 |
-
-Q、K、V 都可以理解成“把同一份输入从不同角度改写后的向量”。它们的数组外形依次包含：batch、注意力头、token 数、每头维度。区别在于：Q 使用 32 个头；Llama 3 8B 的 K、V 只用 8 个头。
-
-GQA 会把少量 K、V 头分给多个 Q 头使用。对推理最重要的结果是：**KV Cache 按 `Hkv` 计，不按 `H` 计。** 因此 Llama 3 8B 的 Cache 只有纯 MHA 设计约四分之一的大小。
-
-FFN 是 Block 里的另一个大部件。它会先把向量扩展到更宽的空间、做一次非线性变换、再压回原宽度。模型大部分参数通常在 FFN 里；但 Decode 的时间大头常常不是做计算，而是把这些权重从显存搬到计算单元。第 2 章会解释原因。
-
-<div class="callout warn">
-<span class="label">易错</span>
-不要把 <code>num_attention_heads</code> 和 <code>num_key_value_heads</code> 当成同一个数。读 HuggingFace <code>config.json</code> 时先找这两个字段。很多「我算的 KV 显存对不上」来自这里。
-</div>
-
-## RoPE 与推理
-
-RoPE 把位置信息写进 Q 和 K 的旋转里，而不是简单加在 embedding 上。推理时有两个直接后果：
-
-1. **可以增量计算。** 新 token 只旋转自己的 Q、K；历史 K 已经在 Cache 里带着正确的位置。
-2. **外推不是免费的。** 训练长度之外的位置，旋转角度会走到模型没见过的区域。YaRN、NTK-aware scaling、位置插值，都是在修这件事。本课到长上下文章节再展开。
-
-实现上你会看到两种写法：`complex64` 视图，或把偶/奇维拆开做 `cos/sin`。对数组形状没有影响。
-
-## GPU：算力、带宽、Roofline 预告
-
-先建立三个量，不必一次学完 CUDA：
-
-| 量 | 它在问什么 | 数量级（H100 SXM） |
-| --- | --- | --- |
-| 峰值算力 | 每秒最多多少 FLOP | ~989 TFLOP/s（FP16 Tensor Core） |
-| 显存带宽 | 每秒最多从 HBM 搬多少字节 | ~3.35 TB/s |
-| 显存容量 | 权重 + KV + 激活还能不能放下 | 80 GB |
-
-**算术强度** 是“做了多少计算 ÷ 搬了多少数据”。强度高，GPU 更可能忙着计算；强度低，GPU 更可能在等显存。
-
-以 FP16、单条请求的 Decode 为例：模型每生成一个 token，通常都要读一遍权重；每个权重只参与一次乘加。这导致它的算术强度大约只有 1 FLOP/byte。H100 需要接近 295 FLOP/byte 才能把计算单元喂满，因此 Decode 几乎一定是 **memory-bound**。第 2 章会用图把这个判断讲清楚。
-
-现在只需要记住一句话：**推理优化的默认假说是「在搬数据，不是在算」。** 任何声称加速的技术，都应该能指出它少搬了什么，或把算术强度抬到了哪。
-
-## 代码实战：最小 GPT 前向
-
-下面是一个刻意写短的 Decoder 层。它没有加载任何真实模型，也不会生成有意义的句子；作用是让你看清数据如何流动。直接在浏览器里用 Colab 运行即可，免费 CPU 足够。
-
-**先读代码的地图：**
-
-- `RMSNorm`：把数字的尺度整理得更稳定。
-- `CausalSelfAttention`：计算“当前位置应该关注前面哪些位置”。
-- `SwiGLU`：对 Attention 汇总后的信息再做一次非线性加工。
-- `Block`：把 Attention 与 FFN 用残差连接串起来；真实大模型会堆叠几十到上百个 Block。
+你可能已经用过这样的代码：
 
 ```python
-import math
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-
-class RMSNorm(nn.Module):
-    def __init__(self, d, eps=1e-6):
-        super().__init__()
-        self.eps = eps
-        self.weight = nn.Parameter(torch.ones(d))
-
-    def forward(self, x):
-        rms = x.pow(2).mean(-1, keepdim=True).add(self.eps).sqrt()
-        return self.weight * (x / rms)
-
-class CausalSelfAttention(nn.Module):
-    def __init__(self, d, n_head):
-        super().__init__()
-        assert d % n_head == 0
-        self.n_head = n_head
-        self.head_dim = d // n_head
-        self.qkv = nn.Linear(d, 3 * d, bias=False)
-        self.proj = nn.Linear(d, d, bias=False)
-
-    def forward(self, x):
-        B, S, D = x.shape
-        qkv = self.qkv(x).view(B, S, 3, self.n_head, self.head_dim)
-        q, k, v = qkv.unbind(2)                     # (B, S, H, d)
-        q, k, v = q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2)
-        att = (q @ k.transpose(-2, -1)) / math.sqrt(self.head_dim)
-        mask = torch.tril(torch.ones(S, S, device=x.device, dtype=torch.bool))
-        att = att.masked_fill(~mask, float("-inf"))
-        att = F.softmax(att, dim=-1)
-        y = (att @ v).transpose(1, 2).contiguous().view(B, S, D)
-        return self.proj(y)
-
-class SwiGLU(nn.Module):
-    def __init__(self, d, d_ff):
-        super().__init__()
-        self.w1 = nn.Linear(d, d_ff, bias=False)
-        self.w2 = nn.Linear(d, d_ff, bias=False)
-        self.w3 = nn.Linear(d_ff, d, bias=False)
-
-    def forward(self, x):
-        return self.w3(F.silu(self.w1(x)) * self.w2(x))
-
-class Block(nn.Module):
-    def __init__(self, d, n_head, d_ff):
-        super().__init__()
-        self.n1 = RMSNorm(d)
-        self.attn = CausalSelfAttention(d, n_head)
-        self.n2 = RMSNorm(d)
-        self.ffn = SwiGLU(d, d_ff)
-
-    def forward(self, x):
-        x = x + self.attn(self.n1(x))
-        x = x + self.ffn(self.n2(x))
-        return x
+answer = client.chat.completions.create(
+    model="some-model",
+    messages=[{"role": "user", "content": "解释什么是 KV Cache"}],
+)
 ```
 
-上面的代码有三个值得停下来看一眼的地方：
+这几行代码很好用，但隐藏了很多东西：为什么模型需要知道 Token 数？为什么回答是一个字一个字出现的？模型文件、Tokenizer 和 API 服务是不是同一个东西？
 
-1. `qkv = ...view(B, S, 3, H, d)`：一次线性层同时生成 Q、K、V；`unbind(2)` 再把它们拆开。
-2. `att = q @ k.transpose(-2, -1)`：这是“每个词和所有历史词打分”。下面的 `mask` 会挡住未来位置。
-3. `x = x + ...`：这是残差连接。新计算出的信息加回原来的 `x`，让深层网络仍保留原始信息。
+这一章只把这些角色分开。先不关心它们内部的数学。
 
-用一组很小的“假 Llama”尺寸来运行。不要下载 8B 权重。
+## 用一个比喻理解
+
+把 LLM 当成一家餐厅：
+
+- **你的 Python 程序**是顾客，提交订单（Prompt）。
+- **推理服务**是服务员，接收请求、排队、把结果流式送回。
+- **Tokenizer**是点单系统，把文字翻译成厨房能处理的编号。
+- **模型权重**是厨师积累的经验；它不存你的问题，而是决定看到编号后更可能接什么编号。
+- **GPU/CPU**是厨房设备，真正执行计算。
+
+服务员、点单系统和厨师不是同一个人；这也是为什么生产系统会分别优化 API、Tokenization、调度和模型计算。
+
+## 图：一次请求的生命周期
+
+<RequestLifecycleFlow />
+
+图中最后一段会重复：模型先给出一个新 token；服务把它转回文字并发给你；该 token 再成为下一轮输入的一部分。于是网页上的回答看起来像“逐字流出”。
+
+## 拆开看
+
+### 第一步：Prompt 不是模型的直接输入
+
+你写的是 Python 字符串。模型只能处理数字，所以服务先交给 Tokenizer。Tokenizer 会把字符串拆成 token，并把每个 token 映射为整数 ID。
+
+不要把 token 理解成“一个汉字”或“一个英文单词”。它是模型词典中的片段。第 1 章会实际打印这些片段。
+
+### 第二步：权重不是知识库
+
+模型权重是一大组已训练好的数字文件。它们决定“在当前上下文后面，哪个 token 更可能出现”。
+
+这和检索系统不同：检索系统会在文档库中找原文；模型权重是在计算中产生下一个 token 的分数。一个真实产品可能同时使用两者，但它们是不同组件。
+
+### 第三步：推理服务负责把模型变成 API
+
+Hugging Face 的 `pipeline()` 可以让你在一个 Python 进程里直接调用模型。vLLM 则把模型包装成可并发访问的服务，并提供与 OpenAI 兼容的接口。
+
+以后会遇到的 TTFT、并发数、KV Cache 和连续批处理，都属于“如何把模型服务给很多请求”的问题，而不是 Prompt 字符串的问题。
+
+## 动手：运行一个极小模型
+
+点击顶部 Colab 链接。Notebook 会下载一个很小的公开文本生成模型，并运行一次生成。它同时打印：
+
+1. 你传入的 Prompt；
+2. Tokenizer 产生的 token ID；
+3. 模型补出的文本。
+
+这不是为了得到高质量回答，而是为了看到完整链路。免费 CPU 可以运行。
+
+核心代码只有两步：
 
 ```python
-B, S, D, H = 1, 16, 64, 4
-d_ff = 128
-x = torch.randn(B, S, D)
-block = Block(D, H, d_ff)
-y = block(x)
-assert y.shape == (B, S, D)
-print("ok", tuple(y.shape))
+from transformers import pipeline
+
+generator = pipeline("text-generation", model="sshleifer/tiny-gpt2")
+result = generator("Python 程序发送的 Prompt：", max_new_tokens=20)
+print(result[0]["generated_text"])
 ```
 
-<div class="callout lab">
-<span class="label">建议怎么跑</span>
-点击本章顶部的 Colab 链接；在菜单选择 <code>运行时 → 全部运行</code>。输出 <code>ok (1, 16, 64)</code> 就表示最小 Block 已经跑通。
-</div>
+`pipeline()` 帮你加载了 Tokenizer 和权重。输入是字符串；返回值是包含生成文本的列表。下一章会拆开 `pipeline()`，直接查看 Tokenizer 的输出。
 
-**如果想多练一步：**
+**试着改：**
 
-1. 在 `CausalSelfAttention.forward` 里对 `q, k, v, att` 各打一行 `print(shape)`。`att` 必须是 `(B, H, S, S)`。
-2. 把 `n_head` 改成不能整除 $D$ 的数，确认 `assert` 会响——形状约束要变成肌肉记忆。
-3. （可选）把 `nn.Linear` 换成手写 `x @ W.T`，体会 Decode 时「读 $W$」和「读 $x$」谁更大。$W$ 是 $D \times D$ 量级，$x$ 只是 $1 \times D$。
+1. 把 Prompt 换成英文，观察输出；
+2. 把 `max_new_tokens` 从 20 改成 5；
+3. 在 Colab 中打印 `generator.tokenizer`，确认它是一个独立对象。
 
-对照阅读：[nanoGPT 的 `model.py`](https://github.com/karpathy/nanoGPT/blob/master/model.py)。你会发现它用的是 MHA + GELU，没有 GQA 和 SwiGLU；差在细节，骨架相同。
+## 连接真实系统
 
-<div class="callout lab">
-<span class="label">实验完成标准</span>
-你能不看代码，在白纸上写出 <code>qkv</code> 投影之后 <code>view / unbind / transpose</code> 的形状变化。做不到就不要进第 1 章——KV Cache 只是把这里的 <code>k, v</code> 沿序列维拼起来。
-</div>
+- [Hugging Face pipeline](https://huggingface.co/docs/transformers/main_classes/pipelines) 适合本地快速调用。
+- [vLLM Quickstart](https://docs.vllm.ai/en/latest/getting_started/quickstart.html) 展示了如何把模型启动为 OpenAI 兼容服务。
+- 后续源码章节会从 vLLM 的 `LLMEngine.add_request()` 开始，追踪这张图里的“服务收到 Prompt”。
+
+## 常见误解
+
+- “模型 API”不等于“模型”。API 是调用入口；权重才是模型运行所需的文件。
+- Tokenizer 不是可有可无的预处理。权重训练时使用了特定词典，替换它会让输入数字失去意义。
+- 流式输出不代表模型一次计算出整段答案。通常它是逐 token 生成、逐 token 返回。
+
+## 小结
+
+- 一次请求至少涉及程序、服务、Tokenizer、权重和计算硬件。
+- 模型预测下一个 token；服务负责把 token 作为文字交给你。
+- 下一章先解决一个基础问题：token 到底是什么。
 
 ## 参考资料
 
-- Vaswani et al., [Attention Is All You Need](https://arxiv.org/abs/1706.03762)
-- Jay Alammar, [The Illustrated Transformer](https://jalammar.github.io/illustrated-transformer/)
-- Karpathy, [nanoGPT](https://github.com/karpathy/nanoGPT) 与视频 [Let's build GPT](https://www.youtube.com/watch?v=kCc8FmEb1nY)
-- Llama 2 / Llama 3 技术报告中的 GQA 与 SwiGLU 段落（知道 $H_{kv}$ 从哪来）
-
-下一章会给上面的 `CausalSelfAttention` 加上 cache，并写出显存公式。
+- [Hugging Face Course：Introduction](https://huggingface.co/learn/llm-course/chapter1/1) — 从 Python 调用模型开始的官方课程。
+- [Hugging Face Pipelines](https://huggingface.co/docs/transformers/main_classes/pipelines) — 本章 Colab 使用的高层 API。
+- [vLLM Quickstart](https://docs.vllm.ai/en/latest/getting_started/quickstart.html) — 后续服务化章节的官方入口。
 
 ## 自测
 
 <Quiz :questions="[
   {
-    prompt: 'Llama 3 8B 的 hidden size 是 4096、query 头数 32、KV 头数 8。head_dim 是多少？KV 相对纯 MHA 省了多少显存？',
-    options: [
-      'head_dim = 128；KV 是 MHA 的 1/4',
-      'head_dim = 512；KV 是 MHA 的 1/4',
-      'head_dim = 128；KV 是 MHA 的 1/8',
-      'head_dim = 256；GQA 不改变 KV 大小'
-    ],
+    prompt: '你把 Python 字符串交给 LLM 服务后，最先必须发生的转换是什么？',
+    options: ['字符串变为 token IDs', '直接读取 GPU 显存', '把回答写进向量数据库', '把模型重新训练一次'],
     answer: 0,
-    explanation: 'head_dim = D/H = 4096/32 = 128。KV 按 H_kv 计，8/32 = 1/4。'
+    explanation: '模型处理的是数字 ID，不是 Python 字符串。Tokenizer 负责这一步。'
   },
   {
-    prompt: 'Prefill 一段长度为 S 的 prompt，因果 Attention 的得分矩阵形状是？',
-    options: [
-      '(B, H, 1, S)',
-      '(B, H, S, S)',
-      '(B, H, S, d)',
-      '(B, S, D)'
-    ],
+    prompt: '哪一项最准确地描述了“模型权重”？',
+    options: ['用户问题的原始文本库', '决定下一个 token 分数的一组训练后数字', 'HTTP API 的地址', '浏览器流式显示组件'],
     answer: 1,
-    explanation: '每个头都是 S 个 query 对 S 个 key。Decode 一步才是 (B, H, 1, S+t)。'
+    explanation: '权重是训练产生的参数；API、文档库和 UI 都是另外的系统部件。'
   },
   {
-    prompt: 'batch=1 的 Decode 步，粗算算术强度大约是 1 FLOP/byte（FP16）。这意味着什么？',
-    options: [
-      '已经喂饱 Tensor Core，优化重点是算子融合',
-      '主要瓶颈是从 HBM 搬权重，继续堆 FLOP 收益很小',
-      '只要换一张算力更高的卡，延迟就会线性下降',
-      'KV Cache 会把强度自动抬到 ridge point 以上'
-    ],
+    prompt: '回答以流式形式出现，通常意味着什么？',
+    options: ['模型已经一次生成完整答案，只是网络故意拆开', '服务通常在每个新 token 生成后就返回它', 'Tokenizer 正在重新训练', '模型不需要计算'],
     answer: 1,
-    explanation: '强度远低于 GPU 脊点（H100 约 300 FLOP/byte）。Decode 是搬权重的游戏。KV Cache 减少的是计算，不是权重流量。'
+    explanation: '自回归模型通常逐 token 生成；流式服务能把每一步尽早发给用户。'
   }
 ]" />

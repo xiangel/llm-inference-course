@@ -49,11 +49,11 @@ export default defineConfig({
     ],
     sidebar: [
       {
-        text: "阶段 A · 单请求原理",
+        text: "阶段 A · 先建立直觉",
         items: [
-          { text: "第 0 章 预备知识", link: "/chapters/00-prerequisites" },
-          { text: "第 1 章 KV Cache", link: "/chapters/01-kv-cache" },
-          { text: "第 2 章 性能分析", link: "/chapters/02-perf-analysis" },
+          { text: "第 0 章 一次 LLM 请求", link: "/chapters/00-prerequisites" },
+          { text: "第 1 章 Token 与上下文", link: "/chapters/01-kv-cache" },
+          { text: "第 2 章 Transformer 全貌", link: "/chapters/02-perf-analysis" },
         ],
       },
       {

@@ -4,12 +4,12 @@ import { withBase } from "vitepress";
 const layers = [
   {
     kicker: "阶段 A · 已开放",
-    title: "单请求原理",
-    desc: "搞清楚一次推理请求在算什么、把时间花在哪。KV Cache 是贯穿全课的第一等公民。",
+    title: "先建立直觉",
+    desc: "从一次请求、Token 和 Transformer 全貌开始。默认你会 Python，但还不了解算法与深度学习。",
     items: [
-      { href: "/chapters/00-prerequisites", code: "00", title: "预备知识：Transformer 与 GPU", open: true },
-      { href: "/chapters/01-kv-cache", code: "01", title: "自回归解码与 KV Cache", open: true },
-      { href: "/chapters/02-perf-analysis", code: "02", title: "性能分析：瓶颈在哪里", open: true },
+      { href: "/chapters/00-prerequisites", code: "00", title: "一次 LLM 请求发生了什么", open: true },
+      { href: "/chapters/01-kv-cache", code: "01", title: "Token：模型眼中的文本", open: true },
+      { href: "/chapters/02-perf-analysis", code: "02", title: "Transformer 全貌：模型怎样续写文本", open: true },
     ],
   },
   {
