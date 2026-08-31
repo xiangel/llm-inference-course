@@ -1,6 +1,8 @@
 import { defineConfig } from "vitepress";
 
-const base = process.env.VITEPRESS_BASE || "/";
+const base =
+  process.env.VITEPRESS_BASE ||
+  (process.env.GITHUB_ACTIONS ? "/llm-inference-course/" : "/");
 
 export default defineConfig({
   lang: "zh-CN",
@@ -78,7 +80,9 @@ export default defineConfig({
         ],
       },
     ],
-    socialLinks: [],
+    socialLinks: [
+      { icon: "github", link: "https://github.com/xiangel/llm-inference-course" },
+    ],
     footer: {
       message: "第 0–2 章先行公开 · 使用 VitePress 构建，可发布到 GitHub Pages",
       copyright: "课程内容以第一性原理为主线：KV Cache 是贯穿全课的第一等公民",

@@ -27,7 +27,7 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          VITEPRESS_BASE: ${{ vars.VITEPRESS_BASE || '/' }}
+          VITEPRESS_BASE: ${{ vars.VITEPRESS_BASE || '/llm-inference-course/' }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs/.vitepress/dist
