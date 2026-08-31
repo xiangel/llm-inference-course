@@ -25,6 +25,8 @@ $$
   ]"
 />
 
+<a class="colab-link" href="https://colab.research.google.com/github/xiangel/llm-inference-course/blob/main/notebooks/01_kv_cache.ipynb" target="_blank" rel="noreferrer">在 Google Colab 打开并运行本章代码 ↗</a>
+
 ## 自回归在算什么
 
 语言模型定义的是
@@ -33,7 +35,7 @@ $$
 p(x_{1:T}) = \prod_{t=1}^{T} p(x_t \mid x_{<t})
 $$
 
-生成时我们从左往右采样。第 $t$ 步的输入是已经得到的前缀，输出是 $x_t$ 在词表上的分布。这不是实现细节，是模型本身的定义——所以 **Decode 天生是串行的**。投机解码（第 6 章）能做的，是在不改变这个分布的前提下，多猜几个 token 再一次性验证，而不是取消自回归。
+生成时我们从左往右采样。第 $t$ 步的输入是已经得到的前缀，输出是 $x_t$ 在词表上的分布。例如模型已经写出「今天天气」，才有条件猜下一个词「很」。所以 **Decode 天生是串行的**：没生成前一个 token，就不知道后一个 token 的输入。
 
 没有 KV Cache 的朴素实现：每一步都把完整前缀再跑一遍网络。生成 $T$ 个 token，Attention 的代价按 $1^2 + 2^2 + \cdots + T^2 \sim O(T^3)$ 增长。这会慢到没法用。
 
@@ -57,6 +59,8 @@ Prefill 在算一个大 GEMM + 一段 S×S Attention；Decode 在反复把整份
 
 ## KV Cache 的数学与显存
 
+先说人话：Attention 每次都需要“当前 token 对历史每个 token 的 Key 和 Value”。历史 token 的 Key 和 Value 一旦算出就不会变，因此把它们保存在显存里，下次直接拿来用，而不是重新计算。这块保存空间就是 KV Cache。
+
 第 $t$ 步，第 $\ell$ 层：
 
 $$
@@ -75,6 +79,24 @@ $$
 $$
 
 把所有层加起来，乘上 Key/Value 两份和每元素字节，就得到文首的公式。
+
+### 公式里的每个变量是什么
+
+$$
+\mathrm{KV\ bytes} = 2 \cdot L \cdot H_{kv} \cdot d \cdot S \cdot B \cdot e
+$$
+
+| 符号 | 名称 | 通俗解释 | 例：Llama 3 8B |
+| --- | --- | --- | --- |
+| $2$ | Key + Value | 每个位置要同时存 K 和 V 两份数据 | 2 |
+| $L$ | 层数 | 模型有多少个 Transformer Block；每层都有自己的 Cache | 32 |
+| $H_{kv}$ | KV 头数 | 每层要存几组 Key/Value；GQA 会让它小于普通注意力头数 | 8 |
+| $d$ | 每头维度 | 每一组 K 或 V 里有多少个数字 | 128 |
+| $S$ | 已缓存长度 | prompt 加上已经生成的 token 数；越长越占显存 | 例如 8192 |
+| $B$ | batch size | 同时服务多少条请求；每条都有自己的 Cache | 1 |
+| $e$ | 每元素字节数 | FP16/BF16 是 2；FP8/INT8 是 1；INT4 是 0.5 | 2 |
+
+因此最简单的读法是：**先算一个 token、一层、一个 KV 头要占多少字节，再把它乘到所有层、所有 token、所有请求上。**
 
 **心算：Llama 3 8B，FP16，batch = 1**
 
@@ -152,7 +174,13 @@ def sample(logits, temperature=1.0, top_k=0, top_p=1.0):
 
 ## 代码实战：手写 KV Cache
 
-回到第 0 章的 `CausalSelfAttention`。Cache 就是沿序列维拼接的 `k` 和 `v`。Decode 步传入 `x` 的 $S=1$。
+回到第 0 章的 `CausalSelfAttention`。先不用担心全部细节：Cache 就是沿序列维拼接的 `k` 和 `v`。Prefill 时传入整段 prompt；之后 Decode 每步传入一个新 token（$S=1$）。
+
+下面代码的关键是 `cache`：
+
+- 第一次调用：`cache=None`，正常算出 prompt 的 K、V。
+- 后续调用：取出旧的 `pk, pv`，把新 token 的 `k, v` 接在后面。
+- 返回 `new_cache`：让下一步继续使用。
 
 ```python
 class CausalSelfAttention(nn.Module):
@@ -205,6 +233,11 @@ def generate(model, idx, n_new, temperature=0.8, top_p=0.9):
 ```
 
 `model.forward` 需要把每层返回的 cache 收成一份 list——这和 HuggingFace 的 `past_key_values` 是同一个对象，只是没有那么多层包装。
+
+<div class="callout lab">
+<span class="label">在 Colab 里运行</span>
+点击本章顶部的链接。Notebook 会先运行一个非常小的 Attention，再打印每次 Decode 后的 KV 长度：<code>4 → 5 → 6 ...</code>。看懂这个长度增长，比背完整代码重要。
+</div>
 
 **对照实验（强烈建议做）：**
 

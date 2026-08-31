@@ -19,6 +19,8 @@ description: TTFT / TPOT、Roofline、算术强度，以及为什么 Prefill 吃
   ]"
 />
 
+<a class="colab-link" href="https://colab.research.google.com/github/xiangel/llm-inference-course/blob/main/notebooks/02_perf_basics.ipynb" target="_blank" rel="noreferrer">在 Google Colab 打开性能实验 ↗</a>
+
 ## 该看哪些指标
 
 服务一个生成请求，墙上时钟可以切成两段，对应第 1 章的两阶段：

@@ -7,7 +7,7 @@ description: Decoder-only Transformer 的数据流、张量形状、RoPE，以�
 
 **学时** 4–6 小时 · **阶段 A** 单请求原理 · 不需要 GPU
 
-这一章的目标不是「再学一遍 Attention」。目标是：看到一个 7B 模型的配置文件时，你能立刻写出每一层张量的形状，并且知道这些形状在 GPU 上会变成怎样的访存。
+这一章先用最朴素的方式回答三个问题：Transformer 是什么、它如何从一句话预测下一个词、以及大模型为什么要用 GPU。读完后，再去看 Llama 或 Qwen 的代码会轻松很多。
 
 <Checklist
   slug="00-prerequisites"
@@ -17,6 +17,8 @@ description: Decoder-only Transformer 的数据流、张量形状、RoPE，以�
     { id: 'quiz-0', label: '完成第 0 章自测' }
   ]"
 />
+
+<a class="colab-link" href="https://colab.research.google.com/github/xiangel/llm-inference-course/blob/main/notebooks/00_transformer_basics.ipynb" target="_blank" rel="noreferrer">在 Google Colab 打开并运行本章代码 ↗</a>
 
 ## 为什么从这里开始
 
@@ -34,9 +36,31 @@ description: Decoder-only Transformer 的数据流、张量形状、RoPE，以�
 本课默认 Decoder-only（GPT / Llama / Qwen / DeepSeek 这一路）。Encoder-decoder（T5）和纯 Encoder（BERT）只在需要对比时出现。
 :::
 
+## Transformer 整体架构：先看全图
+
+Transformer 可以把它理解成一个“根据前文猜下一个词”的机器。假设输入是「今天天气很」，它会给词表中的每一个词一个分数：`好` 可能最高，`糟糕` 也有一些可能。我们按照这些分数选出一个新词，然后把新词接到句子后面，重复这个过程。
+
+一个 Decoder-only Transformer 的整体流水线只有四步：
+
+1. **分词（Tokenizer）**：把文字变成整数 ID，例如「今天天气很」→ `[123, 456, 789]`。
+2. **词向量（Embedding）**：把每个整数 ID 查表，变成一串浮点数；这就是模型真正处理的输入。
+3. **多层 Transformer Block**：每层有两部分。Attention 让一个词查看它之前的词；FFN 则独立地加工每个位置的信息。两者之间都有残差连接，避免信息在深层网络里消失。
+4. **输出层（LM Head）**：把最后一个位置的向量映射到整个词表，得到下一个 token 的概率分布。
+
+```text
+文字 → Token IDs → Embedding → [Attention + FFN] × L 层 → LM Head → 下一个 token 的概率
+```
+
+这里的 **Decoder-only** 指“只能看左边，不能偷看右边”。生成「今天天气很 _」时，模型只能参考已经出现的「今天天气很」，不能先看答案。这条限制由 Attention 里的因果遮罩（causal mask）实现。
+
+<div class="callout insight">
+<span class="label">一个简单比喻</span>
+把每个 token 当成会议室里的一位参会者。Attention 让当前参会者查看前面所有人的发言，并决定谁更重要；FFN 则让它独自整理听到的信息。经过多轮会议后，最后一位参会者投票选出下一个词。
+</div>
+
 ## Decoder-only 数据流
 
-当代开源 LLM 几乎都是这条流水线。Llama / Qwen 把 LayerNorm 换成 RMSNorm，把 GELU FFN 换成 SwiGLU，把绝对位置换成 RoPE——骨架没变。
+现在来看 Block 内部。Llama / Qwen 把 LayerNorm 换成 RMSNorm，把 GELU FFN 换成 SwiGLU，把绝对位置换成 RoPE，但整体骨架没有改变。
 
 <DecoderDiagram />
 
@@ -50,7 +74,7 @@ description: Decoder-only Transformer 的数据流、张量形状、RoPE，以�
 
 ## 张量形状清单
 
-把下面这张表抄到纸上。配置文件里的名字可能叫 `n_embd` / `hidden_size` / `d_model`，它们是同一个 $D$。
+第一次看可以不用背公式。先把 $D$ 理解成“每个 token 用多少个数字描述自己”，$H$ 理解成“Attention 同时从多少种角度看上下文”。配置文件里的 `n_embd` / `hidden_size` / `d_model`，指的都是 $D$。
 
 | 符号 | 含义 | Llama 3 8B |
 | --- | --- | --- |
@@ -112,9 +136,14 @@ H100 的「屋顶脊点」大约是 $989 / 3.35 \approx 295$ FLOP/byte。Decode 
 
 ## 代码实战：最小 GPT 前向
 
-下面是一个刻意写短的 Decoder 层。不要抄 HuggingFace。目标是：打印每个张量的形状，确认和上一节表格一致。
+下面是一个刻意写短的 Decoder 层。它没有加载任何真实模型，也不会生成有意义的句子；作用是让你看清数据如何流动。直接在浏览器里用 Colab 运行即可，免费 CPU 足够。
 
-在 CPU 上即可。建议开一个 notebook 或 `python -i`。
+**先读代码的地图：**
+
+- `RMSNorm`：把数字的尺度整理得更稳定。
+- `CausalSelfAttention`：计算“当前位置应该关注前面哪些位置”。
+- `SwiGLU`：对 Attention 汇总后的信息再做一次非线性加工。
+- `Block`：把 Attention 与 FFN 用残差连接串起来；真实大模型会堆叠几十到上百个 Block。
 
 ```python
 import math
@@ -177,7 +206,13 @@ class Block(nn.Module):
         return x
 ```
 
-用一组「假 Llama」尺寸做 shape 断言。不必真的去下 8B 权重。
+上面的代码有三个值得停下来看一眼的地方：
+
+1. `qkv = ...view(B, S, 3, H, d)`：一次线性层同时生成 Q、K、V；`unbind(2)` 再把它们拆开。
+2. `att = q @ k.transpose(-2, -1)`：这是“每个词和所有历史词打分”。下面的 `mask` 会挡住未来位置。
+3. `x = x + ...`：这是残差连接。新计算出的信息加回原来的 `x`，让深层网络仍保留原始信息。
+
+用一组很小的“假 Llama”尺寸来运行。不要下载 8B 权重。
 
 ```python
 B, S, D, H = 1, 16, 64, 4
@@ -189,7 +224,12 @@ assert y.shape == (B, S, D)
 print("ok", tuple(y.shape))
 ```
 
-**必做的三件事：**
+<div class="callout lab">
+<span class="label">建议怎么跑</span>
+点击本章顶部的 Colab 链接；在菜单选择 <code>运行时 → 全部运行</code>。输出 <code>ok (1, 16, 64)</code> 就表示最小 Block 已经跑通。
+</div>
+
+**如果想多练一步：**
 
 1. 在 `CausalSelfAttention.forward` 里对 `q, k, v, att` 各打一行 `print(shape)`。`att` 必须是 `(B, H, S, S)`。
 2. 把 `n_head` 改成不能整除 $D$ 的数，确认 `assert` 会响——形状约束要变成肌肉记忆。

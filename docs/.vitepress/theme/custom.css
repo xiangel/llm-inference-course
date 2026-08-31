@@ -207,3 +207,24 @@ input[type="range"] {
 
 .katex { font-size: 1.05em; }
 .vp-doc .custom-block.tip { border-color: var(--vp-c-brand-1); }
+
+.vp-doc .colab-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.2rem 0 1.15rem;
+  padding: 0.52rem 0.8rem;
+  border: 1px solid var(--vp-c-brand-1);
+  border-radius: 999px;
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.vp-doc .colab-link:hover {
+  background: var(--vp-c-brand-1);
+  color: var(--vp-c-bg);
+  text-decoration: none;
+}
