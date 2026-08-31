@@ -10,12 +10,13 @@ description: [用一句话说明程序员学完能做什么]
 
 # 第 N 章 · [主题]
 
-**学时** [范围] · **需要** [Python/免费 Colab/GPU（可选）]
+**学时** [范围] · **需要** [Python / 阅读即可 / 免费 Colab / GPU（可选）]
 
 一句话回答：**[本章要解决的真实问题]**
 
 <Checklist ... />
 
+<!-- Include this block only when this chapter has a runnable code lab. -->
 <a class="colab-link" href="[Colab URL]" target="_blank" rel="noreferrer">
   在 Google Colab 打开并运行本章代码 ↗
 </a>
@@ -36,6 +37,7 @@ description: [用一句话说明程序员学完能做什么]
 ### 第三步：[必要公式；可选]
 [先解释它回答的问题，再给变量表、代入实例和边界。]
 
+<!-- Include the following section only when code materially improves learning. -->
 ## 动手：最小实验
 [先解释实验会显示什么。]
 

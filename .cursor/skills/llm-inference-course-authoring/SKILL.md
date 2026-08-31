@@ -24,8 +24,8 @@ Do not assume the learner has read papers. Define a new term in plain Chinese on
 The desired outcome for each chapter is:
 
 1. the learner can explain the idea in ordinary language;
-2. the learner can run a small experiment;
-3. the learner can identify where that idea appears in a real system such as Hugging Face, vLLM, SGLang, or llama.cpp.
+2. the learner can identify where that idea appears in a real system such as Hugging Face, vLLM, SGLang, or llama.cpp;
+3. when the chapter includes a code lab, the learner can run a small experiment.
 
 Read [the chapter template](references/chapter-template.md) and [the pedagogy rubric](references/pedagogy-rubric.md) before authoring a chapter.
 
@@ -63,13 +63,15 @@ Default order:
 2. **Mental model** — a short explanation or analogy.
 3. **Visual** — a diagram that shows data/control flow.
 4. **Walkthrough** — explain the moving parts in execution order.
-5. **Hands-on lab** — a small runnable Colab exercise.
+5. **Hands-on lab** — only when running code materially improves understanding; make it a small runnable Colab exercise.
 6. **Production connection** — where the mechanism appears in real tooling.
 7. **Common mistakes** — 2–4 likely misconceptions.
 8. **Recap and self-check** — what to explain without looking.
 9. **References** — curated, annotated sources.
 
 Do not lead with definitions, equations, or a wall of code.
+
+The chapter skeleton is fixed: concept explanation → visual → optional code lab → self-check → references. Do not remove the visual, self-check, or references sections. Omit the code lab and Colab link together when the chapter is conceptual or reading-oriented.
 
 ### 4. Use formulas sparingly
 
@@ -94,7 +96,7 @@ Never introduce more than one new formula in a section. Avoid derivations in the
 
 ### 5. Design code labs
 
-Every code-focused chapter must have a matching notebook at `notebooks/<chapter>_<topic>.ipynb` and a visible Colab link near the top of its Markdown page.
+Only a chapter with a code-focused lab must have a matching notebook at `notebooks/<chapter>_<topic>.ipynb` and a visible Colab link near the top of its Markdown page. Do not create empty or token “example” notebooks for a conceptual chapter.
 
 Labs must:
 
@@ -162,8 +164,8 @@ Before submitting a chapter, check all statements:
 - Does the first screen give intuition before jargon?
 - Does every acronym have a first-use expansion?
 - Does every formula meet the six-step explanation rule?
-- Can the basic lab run in a free Colab session?
-- Does code have cell-level explanation and an expected result?
+- If there is a code lab: can it run in a free Colab session?
+- If there is code: does it have cell-level explanation and an expected result?
 - Does each diagram have readable labels and a clear lesson?
 - Are claims traceable to official docs, papers, or source?
 - Does the chapter clearly say what it does **not** cover yet?
