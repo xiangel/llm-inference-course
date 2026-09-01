@@ -5,7 +5,7 @@ description: 用不含公式的方式理解 Transformer 怎样从上下文取信
 
 # Attention：当前 token 如何看前文
 
-**适合** 会写 Python、刚接触 Transformer 的工程师 · **本章目标** 说清一个新 token 如何利用此前文字；不要求推导矩阵公式。
+**本章目标** 说清一个新 token 如何利用此前文字；不要求推导矩阵公式。
 
 ## 为什么要关心它
 
