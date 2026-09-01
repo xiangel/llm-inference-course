@@ -74,7 +74,7 @@ Hugging Face 的 `pipeline()` 可以让你在一个 Python 进程里直接调用
 
 ## 动手：运行一个极小模型
 
-点击顶部 Colab 链接。Notebook 会下载一个很小的公开文本生成模型，并运行一次生成。它同时打印：
+点击下方代码片段上方的 Colab 按钮。Notebook 会下载一个很小的公开文本生成模型，并运行一次生成。它同时打印：
 
 1. 你传入的 Prompt；
 2. Tokenizer 产生的 token ID；
