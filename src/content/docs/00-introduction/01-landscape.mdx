@@ -84,12 +84,24 @@ for chunk in stream:
 3. **Model computation**：Transformer forward，产出下一个 token 的 logits。
 4. **Hardware**：HBM、SRAM、Tensor Core、NVLink、IB。
 
-**数学。** 本章只需要一个数量级公式，用来说明“系统”从哪里开始变难。对 grouped-query attention 模型：
+**数学。** 本章只需要一个数量级公式，用来说明“系统”从哪里开始变难。对 grouped-query attention 模型，KV Cache 体积是：
 
 $$
 M_{\text{KV}} = 2 \times L \times H_{\text{kv}} \times d_h \times S \times B \times b_{\text{dtype}}
 $$
 
+| 符号 | 含义 | 单位 | 配置 / 出处 |
+| --- | --- | --- | --- |
+| $M_{\text{KV}}$ | Key + Value 缓存占用 | 字节 | 下面再换成 GiB |
+| $2$ | 每个 token 存一份 K 和一份 V | 无量纲 | Attention 的 K、V 各一份 |
+| $L$ | Transformer 层数 | 层 | Hugging Face `num_hidden_layers`；Llama 3.1 70B = 80 |
+| $H_{\text{kv}}$ | KV 头数（GQA 时可少于 Q 头） | 头 | `num_key_value_heads`；70B = 8 |
+| $d_h$ | 每个注意力头的维度 | 元素 | `hidden_size / num_attention_heads`；8192/64 = 128 |
+| $S$ | 当前序列长度（prompt + 已生成） | token | 服务里常叫 context / `max_model_len` 的占用部分 |
+| $B$ | 同时驻留的请求数 | 请求 | 引擎 running batch，不是 HTTP 并发上限 |
+| $b_{\text{dtype}}$ | 每个元素的字节数 | 字节 | BF16/FP16 = 2；FP8 = 1；FP32 = 4 |
+
+层数、头数、hidden 以 [Llama 3 论文 Table 3](https://arxiv.org/abs/2407.21783) 和 Hugging Face `config.json` 为准。vLLM 的 KV 仍按「每层、每 KV 头、每 token、K 与 V」计，只是物理上切成 block；见 [vLLM 架构说明](https://docs.vllm.ai/en/stable/design/arch_overview.html)（Last verified: 2026-09-03）。
 **工程。** 生产路径几乎总是：
 
 `HTTP` → `Tokenizer` → `Request 队列` → `Scheduler` → `GPU forward` → `Sampler` → `流式返回`
@@ -151,16 +163,16 @@ flowchart LR
 
 ## 5. 数学原理
 
-代入 Llama 3.1 70B 的官方超参（Grattafiori et al., 2024, Table 3）：
+代入 Llama 3.1 70B 的官方超参（[Grattafiori et al., 2024, Table 3](https://arxiv.org/abs/2407.21783)）。符号与上一节同一套：
 
-| 符号 | 含义 | 数值 |
+| 符号 | 本例取值 | 对应字段 |
 | --- | --- | --- |
-| $L$ | 层数 | 80 |
-| $H_{\text{kv}}$ | KV 头数 | 8 |
-| $d_h$ | 每头维度 $= 8192 / 64$ | 128 |
-| $S$ | 序列长度 | 8192 |
-| $B$ | batch | 1 |
-| $b_{\text{dtype}}$ | BF16 字节 | 2 |
+| $L$ | 80 | `num_hidden_layers` |
+| $H_{\text{kv}}$ | 8 | `num_key_value_heads` |
+| $d_h$ | $8192/64=128$ | `hidden_size / num_attention_heads` |
+| $S$ | 8192 token | 峰值上下文 |
+| $B$ | 1 | 单请求 |
+| $b_{\text{dtype}}$ | 2 B | BF16，见 [PyTorch 数据类型](https://docs.pytorch.org/docs/stable/tensor_attributes.html#torch-dtype) |
 
 $$
 \begin{aligned}
@@ -171,12 +183,30 @@ M_{\text{KV}}
 \end{aligned}
 $$
 
+逐项对应上一节公式：$2$（K 与 V）$\times L=80$ $\times H_{\text{kv}}=8$ $\times d_h=128$ $\times S=8192$ $\times B=1$ $\times b_{\text{dtype}}=2$。中间结果是字节；除以 $1024^{3}$ 得到 GiB（二进制吉字节，不是 $10^{9}$ 的 GB）。
+
 权重侧用数量级估计：
 
 $$
-M_{\text{w}} \approx 70 \times 10^{9} \times 2\ \text{B} = 140\ \text{GB} \approx 130.4\ \text{GiB}
+M_{\text{w}} \approx N_{\text{params}} \times b_{\text{dtype}}
 $$
 
+| 符号 | 含义 | 本例 | 注意 |
+| --- | --- | --- | --- |
+| $M_{\text{w}}$ | 全部模型权重体积 | ≈ 140 GB 或 130.4 GiB | 不含 KV、激活、碎片 |
+| $N_{\text{params}}$ | 参数个数 | $70\times 10^{9}$（型号名，不是精确计数） | 真实 `Llama-3.1-70B` 略多于 70B |
+| $b_{\text{dtype}}$ | 每参数字节 | 2（BF16） | 量化后会变 |
+
+$$
+70 \times 10^{9} \times 2\ \text{B} = 140\ \text{GB}\ (10^{9})\ \approx 130.4\ \text{GiB}\ (1024^{3})
+$$
+
+| 因子 | 含义 |
+| --- | --- |
+| $70\times10^{9}$ | 用型号名估的参数个数 $N_{\text{params}}$ |
+| $2$ | BF16 的 $b_{\text{dtype}}$ |
+| $140\ \text{GB}$ | 按十进制 $10^{9}$ 报的「大约 140GB」口径 |
+| $130.4\ \text{GiB}$ | 按 $1024^{3}$；本仓库 KV 数字一律用 GiB，避免和 GB 混用 |
 :::note[📐 数学]
 2.5 GiB 的 KV 看起来不大，但它随 $S$ 和 $B$ 线性涨。同一条 70B，128K 上下文单请求 KV 就是 40 GiB；8 路 8K 并发是 20 GiB。权重却几乎是常数。系统问题从这里开始：调度器要在“权重放得下”和“KV 放得下”之间做分配。
 :::
@@ -247,6 +277,20 @@ python3 -m unittest tests.test_ch00_ch01 -v
 
 ## 8. 性能分析
 
+一次请求里 GPU 在做两种完全不同的活：
+
+- **Prefill**：把整段 Prompt 一次算完，产出**第一个**输出 token。矩阵大，主要吃 **算力**（Tensor Core）。
+- **Decode**：之后每一步只生成 1 个新 token，却要把各层权重和已经缓存的 KV 再读一遍。计算量小，主要吃 **显存带宽**（HBM）。
+
+所以同一个“慢了”，不能只说“模型太慢”。要先问：慢在第一个字还没出来，还是字已经在蹦、但每个字都顿。用户侧对应两个常用指标（Serving 口径；是否含 tokenize、是否含排队，因系统而异）：
+
+| 指标 | 全称 | 用户感觉到的是 | 系统里主要在做什么 |
+| --- | --- | --- | --- |
+| TTFT | Time To First Token | 按下发送后，屏幕上出现**第一个字**要等多久 | 排队 + Prefill |
+| TPOT | Time Per Output Token | 第一个字出来之后，**每多一个字**平均再等多久 | 一步 Decode（当时的 batch 和 KV 长度） |
+
+相邻两个输出 token 的单次间隔有时叫 **ITL**（Inter-Token Latency）。TPOT 常常是这些间隔的平均：ITL 看“这一下卡了没有”，TPOT 看“整体打字速稳不稳”。定义见 [NVIDIA NIM 延迟指标](https://docs.nvidia.com/nim/large-language-models/latest/observability.html)（Last verified: 2026-09-03）。
+
 | 维度 | 这一层主要看什么 | 典型瓶颈 |
 | --- | --- | --- |
 | Compute | Prefill 的大 GEMM | Tensor Core 利用率 |
@@ -254,7 +298,7 @@ python3 -m unittest tests.test_ch00_ch01 -v
 | Communication | TP AllReduce、跨节点 PD | NVLink / IB |
 | Scheduling | 哪些请求进入这一轮 | KV 块不够、token budget |
 
-🚀 性能：全景阶段只要建立判断——延迟差，先问是 Gateway 排队、Prefill、Decode 还是采样；吞吐差，先问是 batch 太小、KV 碎片，还是多卡通信。
+🚀 性能：全景阶段只要建立判断——**TTFT** 差，先看排队还是 Prefill；**TPOT** 差，先看 Decode 的 batch 与 KV；吞吐差，先问是 batch 太小、KV 碎片，还是多卡通信。
 
 ---
 
@@ -326,13 +370,11 @@ Llama 3.1 70B: seq=131072 batch=1 ... (40.0000 GiB)
 2. 栈从 Gateway、Engine、Scheduler、KV、Runner 一直落到 GPU Kernel。
 3. 70B BF16 权重大约 140 GB，单卡通常放不下。
 4. 70B 在 8K 上单请求 KV 是 2.5 GiB，随 batch 与上下文线性涨。
-5. Prefill 和 Decode 会打到不同瓶颈，所以必须分层看。
+5. Prefill 一次算完整段 Prompt，容易把算力打满；Decode 每步只出一个 token，却要反复读权重和 KV，容易被带宽卡住。用户等到第一个字的时间是 TTFT，之后每个字的间隔是 TPOT。
 6. vLLM V1 用 EngineCore 把调度和执行拆开。
-7. 教学架构可以简化，但不能把简化数据结构说成框架源码。
-8. 后面每一章都是在给这张全景图填实现。
 
 ---
 
 ## 14. 下一章
 
-全景图解释了“有哪些层”。还没解释：**为什么这些层必须做成系统，而不能靠把模型写快一点解决。** 下一章用 TTFT、排队和 KV 增长说明推理是一个系统问题。
+全景图解释了“有哪些层”。还没解释：**为什么这些层必须做成系统，而不能靠把模型写快一点解决。** 下一章把排队、TTFT、TPOT 和 KV 增长拆开，说明推理是一个系统问题。

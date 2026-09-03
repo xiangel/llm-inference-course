@@ -47,13 +47,20 @@ import ChapterMeta from "../../../components/ChapterMeta.astro";
 
 **直觉。** RoPE 把一对维度看成平面上的点，按 token 位置旋转。两个位置相差 $\Delta$ 时，它们的夹角差也是 $\Delta$ 的函数，于是点积自然带上相对位置。
 
-**模型。** Su et al., 2021, RoFormer：对位置 $m$ 的向量乘旋转矩阵 $R_m$。相对位置出现在：
+**模型。** Su et al., 2021, [RoFormer](https://arxiv.org/abs/2104.09864)：对位置 $m$ 的向量乘旋转矩阵 $R_m$。相对位置出现在：
 
 $$
 (R_m q)^{\top}(R_n k)=q^{\top} R_{n-m} k
 $$
 
-**数学。** 2D 平面上：
+| 符号 | 含义 |
+| --- | --- |
+| $m,n$ | Query、Key 所在的 **绝对位置**（从 0 起的 token 下标） |
+| $q,k$ | 旋转前的 Query / Key 向量（一个头） |
+| $R_m$ | 由位置 $m$ 决定的分块旋转矩阵；$\|R_m v\|=\|v\|$，只改方向不改模长 |
+| $n-m$ | 相对距离；点积只依赖这个差，不依赖绝对起点 |
+
+**数学。** 2D 平面上（一对维度）：
 
 $$
 \begin{pmatrix} x' \\ y' \end{pmatrix}
@@ -65,8 +72,27 @@ $$
 \begin{pmatrix} x \\ y \end{pmatrix}
 $$
 
-频率 $\theta_i=\theta^{-2i/d}$。Llama 2 常用 $\theta=10^4$；Llama 3.1 把 base 提到 $5\times10^5$ 以服务长上下文（Llama 3 论文 Table 3）。
+| 符号 | 含义 | 例子 |
+| --- | --- | --- |
+| $(x,y)$ | 该平面里旋转前的两个分量 | 教学里 $q$ 的偶奇维 |
+| $(x',y')$ | 旋转后 | 再拿去和 Key 做点积 |
+| $m$ | token 位置 | 0, 1, 2, … |
+| $\theta$ | 这一对维度的基频 | $\theta_i=\theta_{\text{base}}^{-2i/d}$ |
 
+频率公式（RoFormer §3.2.2 的常用写法；HF 实现为 `inv_freq`）：
+
+$$
+\theta_i = \theta_{\text{base}}^{-2i/d},\qquad i=0,1,\ldots,d/2-1
+$$
+
+| 符号 | 含义 | Llama 取值 |
+| --- | --- | --- |
+| $\theta_i$ | 第 $i$ 对维度的角频率 | 越大转得越快 |
+| $\theta_{\text{base}}$ | 基数，HF 字段 `rope_theta` | Llama 2 常用 $10^{4}$；Llama 3.1 为 $5\times10^{5}$ |
+| $i$ | 频率编号 | 从 0 到 $d/2-1$ |
+| $d$ | 头维度 `head_dim` | 一般为 128 |
+
+Llama 3.1 把 base 提到 $5\times10^{5}$ 以服务长上下文（[Llama 3 Table 3](https://arxiv.org/abs/2407.21783)）。HF 实现见 [`modeling_rope_utils.py`](https://github.com/huggingface/transformers/blob/main/src/transformers/modeling_rope_utils.py)（Last verified: 2026-09-03）。
 **工程。** 只旋转 Q 和 K，不旋转 V。V 是被取出的内容，位置已经通过 QK 匹配进来。
 
 Logits 是 `lm_head` 的原始分数。Hugging Face 默认 `generate` 为贪心；`do_sample=True` 才按概率抽。
@@ -125,17 +151,31 @@ Llama rotate_half: (0, d/2) (1, d/2+1) ...
 
 ## 5. 数学原理
 
-频率（`head_dim=4`, $\theta=10000$）：
+频率（`head_dim=4`, $\theta_{\text{base}}=10000$）：
 
 $$
-\theta_0=10000^{0}=1,\quad \theta_1=10000^{-2/4}=0.01
+\theta_0=\theta_{\text{base}}^{0}=1,\quad \theta_1=\theta_{\text{base}}^{-2/4}=0.01
 $$
 
-位置 0,1,2 的角度：
+| 符号 | 含义 | 本例 |
+| --- | --- | --- |
+| $\theta_{\text{base}}$ | RoPE 基数，HF 叫 `rope_theta` | 10000 |
+| $d$ | 头维度 `head_dim` | 4 |
+| $\theta_i$ | 第 $i$ 对维度的角频率 | $i=0\Rightarrow 1$；$i=1\Rightarrow 0.01$ |
+| 角度 | 位置 $\times$ 频率 | 位置 2、低频：$2\times 1=2$ rad |
+
+位置 0,1,2 的角度（行 = 位置，列 = 频率对）：
 
 $$
 \begin{bmatrix}0&0\\1&0.01\\2&0.02\end{bmatrix}
 $$
+
+| 行列 | 含义 | 本例 |
+| --- | --- | --- |
+| 行 $m$ | token 绝对位置 | $0,1,2$ |
+| 列 $i$ | 第 $i$ 对维度的角度 $m\theta_i$ | 列 0 用 $\theta_0=1$；列 1 用 $\theta_1=0.01$ |
+| 例如 $(2,0)=2$ | 位置 2、低频对 | $2\times 1=2$ rad |
+| 例如 $(2,1)=0.02$ | 位置 2、高频对 | $2\times 0.01=0.02$ rad |
 
 向量 $q=[1,0,0,1]$ 在位置 1、交错布局下：
 
@@ -147,11 +187,33 @@ $$
 (x_2,x_3)=(0,1)\ \text{转 }0.01\ \text{rad} \Rightarrow (-0.0100,0.99995)
 $$
 
-与 `examples/ch01/rope.py` 的 `q_paper[1]` 一致。
+| 符号 | 含义 | 本例 |
+| --- | --- | --- |
+| $q$ | 旋转前的 4 维向量 | $[1,0,0,1]$，位置 $m=1$ |
+| $(x_0,x_1)$ | 交错布局的第 0 对（维 0 与维 1） | $(1,0)$，转 $m\theta_0=1$ rad |
+| $(x_2,x_3)$ | 第 1 对（维 2 与维 3） | $(0,1)$，转 $m\theta_1=0.01$ rad |
+| 箭头右侧 | 乘 $2\times2$ 旋转矩阵后的坐标 | $\cos1\approx0.5403,\sin1\approx0.8415$ |
 
-温度：$\tau\to0$ 时 softmax 趋近 one-hot（数值上还受浮点限制）；$\tau>1$ 变平。
+与 `examples/ch01/rope.py` 的 `q_paper[1]` 一致。教学是交错对；Llama 的 `rotate_half` 配对方式不同，见下节。
 
-Nucleus（Holtzman et al. 的思想；HF 文档称 top-p）：按概率降序取最小集合，使累计质量 $\ge p$。
+温度：$\tau\to0$ 时 softmax 趋近 one-hot（数值上还受浮点限制）；$\tau>1$ 变平。符号与 [1.1 节 softmax](/01-transformer/01-generate-one-token/#2-核心概念) 相同。
+
+Nucleus / top-p（Holtzman et al., [The Curious Case of Neural Text Degeneration](https://arxiv.org/abs/1904.09751)；HF 文档称 top-p）：
+
+$$
+\mathcal{V}_p=\Bigl\{x_{\pi(1)},\ldots,x_{\pi(k)}\Bigr\}
+\quad\text{其中 }k=\min\bigl\{k':\sum_{i=1}^{k'} p_{\pi(i)}\ge p_{\text{top}}\bigr\}
+$$
+
+| 符号 | 含义 |
+| --- | --- |
+| $p_i$ | softmax 之后、截断之前的概率 |
+| $\pi$ | 把概率从大到小排序的排列，$\,p_{\pi(1)}\ge p_{\pi(2)}\ge\cdots$ |
+| $p_{\text{top}}$ | top-p 阈值（HF `top_p`），例如 0.9 |
+| $k$ | 从最大项起、累计质量刚达到 $p_{\text{top}}$ 时的集合大小 |
+| $\mathcal{V}_p$ | 保留下来的词表子集；其余 logits 在 softmax 前被打成 $-\infty$ |
+
+它丢掉的是累计概率之外的 **尾部质量**，不是固定比例的「种类」。实现顺序见 Hugging Face [Generation strategies](https://huggingface.co/docs/transformers/en/generation_strategies)（Last verified: 2026-09-03）。
 
 ---
 

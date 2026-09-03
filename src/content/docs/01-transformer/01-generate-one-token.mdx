@@ -61,7 +61,14 @@ $$
 p(x_1,\ldots,x_T)=\prod_{t=1}^{T} p(x_t \mid x_{<t})
 $$
 
-推理时 $x_{<t}$ 已知，只要估计 $p(x_t\mid x_{<t})$。
+| 符号 | 含义 |
+| --- | --- |
+| $T$ | 整段序列的长度（prompt + 回答） |
+| $x_t$ | 第 $t$ 个 token id |
+| $x_{<t}$ | $(x_1,\ldots,x_{t-1})$，位置 $t$ 能看到的全部历史 |
+| $p(x_t\mid x_{<t})$ | 在这段历史上，下一个 token 取各个词表项的概率 |
+
+推理时 $x_{<t}$ 已知，只要估计 $p(x_t\mid x_{<t})$。分解方式与 [Hugging Face 生成策略](https://huggingface.co/docs/transformers/en/generation_strategies) 中 `generate()` 的逐步循环一致。
 
 **数学。** 网络输出的是 logits $z\in\mathbb{R}^{V}$，再变成概率：
 
@@ -69,8 +76,15 @@ $$
 p_i = \frac{e^{z_i/\tau}}{\sum_j e^{z_j/\tau}}
 $$
 
-$\tau$ 是温度。贪心则取 $\arg\max z_i$，不必经过采样。
+| 符号 | 含义 | 单位 / 形状 | 出处 |
+| --- | --- | --- | --- |
+| $z_i$ | 词表第 $i$ 项的未归一化分数（logit） | 无量纲标量 | `lm_head` 的输出 |
+| $V$ | 词表大小 | 个 token | Llama 3.1 `vocab_size=128256` |
+| $i,j$ | 词表下标 | $0\ldots V-1$ | |
+| $\tau$ | 温度 temperature | 正实数；$\tau=1$ 为原分布 | HF `temperature`；见 [GenerationConfig](https://huggingface.co/docs/transformers/main_classes/text_generation) |
+| $p_i$ | 抽中第 $i$ 个 token 的概率 | $\sum_i p_i=1$ | softmax |
 
+$\tau$ 是温度。贪心则取 $\arg\max z_i$，不必经过采样。$\tau\to 0$ 时分布变尖，行为接近贪心；$\tau>1$ 变平。HF 默认 `generate` 是贪心，需 `do_sample=True` 才走这条 softmax。
 **工程。** 真实系统把这一步拆开，因为 Tokenizer、GPU forward、采样、detokenize 的硬件和延迟模型都不同。
 
 ---
@@ -136,11 +150,23 @@ $$
 z=\big[-2.095,-1.157,-0.160,0.106,-0.493,-0.283,-0.771,-0.129\big]
 $$
 
-Softmax 后：
+| 符号 | 含义 | 本例 |
+| --- | --- | --- |
+| $z$ | 最后一个位置的 logits 向量 | 长度 $V=8$ |
+| $z_i$ | 候选 id $=i$ 的分数 | 最大项 $z_3=0.106$，贪心会选 3 |
+| $p$ | $\mathrm{softmax}(z)$（$\tau=1$） | 见下一行 |
+
+Softmax 后（$\tau=1$，与上一节 $p_i=e^{z_i}/\sum_j e^{z_j}$ 相同）：
 
 $$
 p \approx [0.024,0.062,0.167,0.218,0.120,0.148,0.091,0.172]
 $$
+
+| 符号 | 含义 | 本例 |
+| --- | --- | --- |
+| $p$ | 词表上的概率向量 | 长度 8，各项之和 $=1$ |
+| $p_i$ | 抽中 token id $=i$ 的概率 | 最大项 $p_3\approx0.218$ |
+| 下标 | 与 $z$ 对齐 | $p_0$ 对应 $z_0=-2.095$ |
 
 贪心选中 index 3。形状检查（教学 7B-like）：
 
@@ -193,9 +219,23 @@ python3 examples/ch01/generate_one_token.py
 手算 lm_head 体积：
 
 $$
+M_{\text{lm}} = d_{\text{model}} \times V \times b_{\text{dtype}}
+$$
+
+| 符号 | 含义 | Llama 3.1 8B |
+| --- | --- | --- |
+| $M_{\text{lm}}$ | 输出投影（lm_head）权重体积 | ≈ 0.98 GiB |
+| $d_{\text{model}}$ | 隐状态宽度 | 4096，`hidden_size` |
+| $V$ | 词表大小 | 128256，`vocab_size`；见 [Llama 3.1 model card](https://github.com/meta-llama/llama-models/blob/main/models/llama3_1/MODEL_CARD.md) |
+| $b_{\text{dtype}}$ | 每元素字节 | 2（BF16/FP16） |
+
+$$
 4096 \times 128256 \times 2 / 1024^{3} \approx 0.98\ \text{GiB}
 $$
 
+三项依次是 $d_{\text{model}}$、$V$、$b_{\text{dtype}}$，再除以 $1024^{3}$ 换成 GiB。
+
+有的实现把 embedding 与 lm_head **绑权**（weight tying），这时这块不重复占显存。Llama 3.1 通常不绑，所以 Decode 每步都要读这近 1 GiB。
 所以“生成一个 token”在 8B 上已经包含一次对接近 1 GiB 矩阵的乘法——Decode 带宽压力不完全来自 Attention。
 
 ---
