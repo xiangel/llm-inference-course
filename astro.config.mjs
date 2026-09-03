@@ -112,15 +112,7 @@ export default defineConfig({
         },
       ],
       sidebar: [
-        {
-          label: "第 0 篇 · 这本书讲什么",
-          items: [
-            { label: "0.1 大模型推理系统全景", slug: "00-introduction/01-landscape" },
-            { label: "0.2 为什么推理是一个系统问题", slug: "00-introduction/02-systems-problem" },
-            { label: "0.3 从一个 Token 到万卡集群", slug: "00-introduction/03-token-to-cluster" },
-            { label: "0.4 全书学习路线", slug: "00-introduction/04-roadmap" },
-          ],
-        },
+        { label: "第 0 篇 · 这本书讲什么", slug: "00-introduction" },
         {
           label: "第一篇 · 理解 LLM 推理",
           items: [
@@ -157,5 +149,11 @@ export default defineConfig({
   markdown: {
     remarkPlugins: [remarkMath],
     rehypePlugins: [rehypeKatex],
+  },
+  redirects: {
+    "/00-introduction/01-landscape": "/00-introduction",
+    "/00-introduction/02-systems-problem": "/00-introduction",
+    "/00-introduction/03-token-to-cluster": "/00-introduction",
+    "/00-introduction/04-roadmap": "/00-introduction",
   },
 });
