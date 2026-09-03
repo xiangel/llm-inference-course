@@ -62,6 +62,15 @@ h &\leftarrow h + \mathrm{FFN}(\mathrm{RMSNorm}(h))
 \end{aligned}
 $$
 
+| 符号 | 含义 | 形状（教学尺寸） |
+| --- | --- | --- |
+| $h$ | 这一层的隐状态 | $(B,S,d_{\text{model}})=(4,1024,4096)$ |
+| $\mathrm{RMSNorm}$ | 按向量 RMS 缩放，再乘可学习增益 | 见下节公式 |
+| $\mathrm{Attn}$ | 因果自注意力 + 输出投影 $W_O$ | 输入输出同形状 |
+| $\mathrm{FFN}$ | 逐位置前馈（Llama 为 SwiGLU） | 中间维 `intermediate_size` |
+| $\leftarrow$ 里的 $+$ | 残差连接：把输入加回子层输出 | 与 $h$ 同形状 |
+
+这是 Pre-Norm：先归一化再进 Attn/FFN。Llama 3 文档与 Hugging Face `LlamaDecoderLayer` 都是这个顺序。原始 Transformer 论文是 Post-Norm。
 Llama 3 的 FFN 是 SwiGLU，不是原始 Transformer 的两层 ReLU MLP。
 
 **工程。** 权重按层存放：Q/K/V/O 投影、三个 FFN 矩阵（SwiGLU）、两套 RMSNorm 参数。Decode 时几乎每层都要全部读一遍。
@@ -121,31 +130,58 @@ flowchart LR
 
 ## 5. 数学原理
 
-RMSNorm（Zhang & Sennrich 思想；Llama 使用）：
+RMSNorm（Zhang & Sennrich, [Root Mean Square Layer Normalization](https://arxiv.org/abs/1910.07467)；Llama 使用）：
 
 $$
 \mathrm{RMSNorm}(x)=\frac{x}{\sqrt{\frac{1}{d}\sum_i x_i^2+\varepsilon}}\odot \gamma
 $$
 
+| 符号 | 含义 | Llama 3.1 典型值 |
+| --- | --- | --- |
+| $x$ | 一个 token 的隐向量 | 长度 $d=d_{\text{model}}$ |
+| $d$ | 该向量维度 | 8B 为 4096 |
+| $x_i$ | $x$ 的第 $i$ 个分量 | |
+| $\varepsilon$ | 防止除零的小数 | `rms_norm_eps=1e-5` |
+| $\gamma$ | 可学习的逐维增益 | 长度 $d$，checkpoint 里的 `weight` |
+| $\odot$ | 逐元素相乘 | |
+
 它没有均值中心化，比 LayerNorm 少一些计算，推理里每层两次。
 
-SwiGLU FFN（Llama 3 Table 3，8B）：
+SwiGLU FFN（Shazeer, [GLU Variants](https://arxiv.org/abs/2002.05202)；Llama 3 Table 3，8B）：
 
 $$
 \mathrm{FFN}(x)=W_2\bigl(\mathrm{SiLU}(W_1 x)\odot (W_3 x)\bigr)
 $$
 
-形状：`hidden=4096`，`intermediate=14336`。一次 FFN 的 GEMM FLOPs（忽略激活）：
+| 符号 | 含义 | 8B 形状 |
+| --- | --- | --- |
+| $x$ | 归一化后的隐状态 | $(B,S,4096)$ |
+| $W_1,W_3$ | 升维门控 / 升维线性 | $(4096,14336)$，`intermediate_size=14336` |
+| $W_2$ | 降维 | $(14336,4096)$ |
+| $\mathrm{SiLU}(u)=u\cdot\sigma(u)$ | Swish 激活 | $\sigma$ 为 sigmoid |
+| $\odot$ | 门控：两路逐元素相乘 | |
+
+一次 FFN 的 GEMM FLOPs（忽略激活；每次乘加计 2 FLOPs）：
 
 $$
-2 \times B \times S \times (2 \times 4096 \times 14336 + 14336 \times 4096)
+F_{\text{FFN}} = 2 \times B \times S \times (2 \times d_{\text{model}} \times d_{\text{ff}} + d_{\text{ff}} \times d_{\text{model}})
 $$
+
+| 符号 | 含义 | 本例 |
+| --- | --- | --- |
+| $F_{\text{FFN}}$ | 一层 FFN 的浮点运算量 | $\approx 1.443\times 10^{12}$ |
+| $B,S$ | batch、序列长 | 4, 1024 |
+| $d_{\text{model}}$ | 隐宽度 | 4096 |
+| $d_{\text{ff}}$ | FFN 中间维 | 14336 |
 
 代入 $B=4,S=1024$：
 
-- $W_1,W_3$：各 $2\times4\times1024\times4096\times14336 = 4.810\times 10^{11}$
-- $W_2$：$2\times4\times1024\times14336\times4096 = 4.810\times 10^{11}$
-- 合计约 $1.443\times 10^{12}$ FLOPs **每层 FFN**
+| 项 | 公式里的矩阵 | 计算 | FLOPs |
+| --- | --- | --- | --- |
+| $W_1$ | $(d_{\text{model}},d_{\text{ff}})$ | $2\times4\times1024\times4096\times14336$ | $4.810\times10^{11}$ |
+| $W_3$ | 同上 | 同上 | $4.810\times10^{11}$ |
+| $W_2$ | $(d_{\text{ff}},d_{\text{model}})$ | $2\times4\times1024\times14336\times4096$ | $4.810\times10^{11}$ |
+| 合计 | $F_{\text{FFN}}$ | 三路相加 | $\approx1.443\times10^{12}$ |
 
 同尺寸下，1.0 节统计的 Attention QKV+score+AV+O 约 $6.18\times 10^{11}$ FLOPs。**Prefill 时 FFN 往往比 Attention 更吃计算。** Decode 时两者都变成读大矩阵。
 
@@ -198,9 +234,22 @@ logits = self.rmsnorm(h) @ self.lm_head
 Attention 权重矩阵一项的体积：
 
 $$
+M_{\alpha} = B \times H \times S \times S \times b_{\text{dtype}}
+$$
+
+| 符号 | 含义 | 本例 |
+| --- | --- | --- |
+| $M_{\alpha}$ | 物化后的注意力权重 $\alpha$ | 256 MiB |
+| $B$ | batch | 4 |
+| $H$ | 头数 | 32 |
+| $S\times S$ | 每个头一张因果注意力图 | $1024\times1024$ |
+| $b_{\text{dtype}}$ | 每元素字节 | 2 |
+
+$$
 4 \times 32 \times 1024 \times 1024 \times 2\ \text{B} = 256\ \text{MiB}
 $$
 
+代入顺序与上一张表相同：$B\times H\times S\times S\times b_{\text{dtype}}$。$256\ \text{MiB}=256\times1024^{2}$ 字节。
 这只是一层、一种精度、不含 softmax 工作区。FlashAttention 要解决的正是 **不要把这张 256 MiB 的矩阵写回 HBM**。第三篇再讲；这里只要看见形状已经危险。
 
 ---
@@ -264,11 +313,19 @@ print(np.linalg.norm(x), np.linalg.norm(h))
 
 试着注释掉残差（`h = attn @ self.w_o`），玩具模型的 logits 会马上数值劣化或爆炸。这能直观说明残差不是装饰。
 
-再算一遍：教学尺寸 Attention 权重 256 MiB。若 `batch=1,S=4096`：
+再算一遍：教学尺寸 Attention 权重 256 MiB。若 $B=1,S=4096$，仍用上一节 $M_{\alpha}=B\times H\times S\times S\times b_{\text{dtype}}$：
 
 $$
 1\times32\times4096\times4096\times2 = 1\ \text{GiB}
 $$
+
+| 因子 | 值 | 含义 |
+| --- | --- | --- |
+| $1$ | $B=1$ | 单条请求 |
+| $32$ | $H$ | 头数，与教学 7B-like / Llama 3.1 8B 的 Q 头一致 |
+| $4096\times4096$ | $S\times S$ | 每个头一张注意力图；序列从 1024 拉到 4096，面积 $\times 16$ |
+| $2$ | $b_{\text{dtype}}$ | BF16/FP16 每元素 2 字节 |
+| 右边 $1\ \text{GiB}$ | $M_{\alpha}/1024^{3}$ | 仅一层、仅权重矩阵，不含 softmax 工作区 |
 
 仅一层 softmax 输入就 1 GiB。这是第三篇 FlashAttention 的动机。
 

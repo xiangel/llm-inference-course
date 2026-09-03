@@ -137,11 +137,26 @@ $$
 B=4,\quad S=1024,\quad d_{\text{model}}=4096,\quad H=32,\quad d_h=128
 $$
 
-以及一套真实对照：
+| 符号 | 含义 | 教学取值 | 对应真实配置 |
+| --- | --- | --- | --- |
+| $B$ | batch，同时计算的序列数 | 4 | 引擎 running batch |
+| $S$ | 序列长度 | 1024 token | prompt + 已生成 |
+| $d_{\text{model}}$ | 隐状态宽度 | 4096 | `hidden_size`；Llama 3.1 8B 同为 4096 |
+| $H$ | Query 头数 | 32 | `num_attention_heads` |
+| $d_h$ | 每头维度 | $4096/32=128$ | 必须整除 |
+
+以及一套真实对照（[Llama 3 Table 3](https://arxiv.org/abs/2407.21783)）：
 
 $$
 \text{Llama 3.1 70B: } L=80,\ H_q=64,\ H_{kv}=8,\ d_{\text{model}}=8192
 $$
+
+| 符号 | 含义 | 70B 取值 | Hugging Face 字段 |
+| --- | --- | --- | --- |
+| $L$ | 层数 | 80 | `num_hidden_layers` |
+| $H_q$ | Query 头数 | 64 | `num_attention_heads` |
+| $H_{kv}$ | Key/Value 头数 | 8 | `num_key_value_heads`（GQA） |
+| $d_{\text{model}}$ | 隐状态宽度 | 8192 | `hidden_size` |
 
 后面凡是手算，优先用这两组。若某章改用别的尺寸，会显式写出。
 

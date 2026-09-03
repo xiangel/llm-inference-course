@@ -60,11 +60,21 @@ import ChapterMeta from "../../../components/ChapterMeta.astro";
 
 **直觉。** 训练像工厂流水线：样本整齐、长度近似、可以大 batch。推理像高峰期的出租车调度：每单起点终点不同，有的只要开两分钟，有的要开一小时，还不能让早到的人空等。
 
-**模型。** 一个在线请求的时间：
+**模型。** 一个在线请求从进队到结束，时间可以拆成：
 
 $$
 T = T_{\text{queue}} + T_{\text{prefill}} + N_{\text{out}} \times T_{\text{decode}}
 $$
+
+| 符号 | 含义 | 单位 | 谁决定它 |
+| --- | --- | --- | --- |
+| $T$ | 这次请求的端到端时间 | 秒 | 用户感知的总等待 |
+| $T_{\text{queue}}$ | 进引擎前排队 | 秒 | Gateway / 限流 / 已有 running 请求 |
+| $T_{\text{prefill}}$ | 处理完整 Prompt、产出首个 token 前的计算 | 秒 | Prompt 长度、GPU 算力；对应 TTFT 的计算部分 |
+| $N_{\text{out}}$ | 生成的输出 token 数 | token | 用户、`max_tokens`、EOS |
+| $T_{\text{decode}}$ | 平均再生成 **一个** token 的时间 | 秒/token | Decode batch、KV 长度；对应 TPOT / ITL |
+
+TTFT / TPOT 的产品定义见 [NVIDIA NIM 延迟指标](https://docs.nvidia.com/nim/large-language-models/latest/observability.html) 与 vLLM 的 `ttft` / `tpot` 统计（Last verified: 2026-09-03）。不同系统的窗口（是否含 tokenize、是否含排队）可能不同，对比数字前要核对定义。
 
 四件事实让它变成系统问题：
 
@@ -145,13 +155,59 @@ flowchart TB
 对 Decode，每步的算术强度大致是：
 
 $$
-\text{AI} \approx \frac{\text{FLOPs}(\text{1 token})}{\text{Bytes read (weights + KV)}}
+\text{AI} \approx \frac{F_{\text{step}}}{Q_{\text{bytes}}}
 $$
 
-教学 7B-like、`batch=4`、上下文 1024、只算一层 Attention 的 score+AV：
+| 符号 | 含义 | 单位 | 怎么理解 |
+| --- | --- | --- | --- |
+| $\text{AI}$ | 算术强度（Arithmetic Intensity） | FLOPs / 字节 | 每从 HBM 读 1 字节，GPU 能做多少计算 |
+| $F_{\text{step}}$ | 这一步（通常 1 个新 token）的浮点运算量 | FLOPs | 教学里用 $2mnh$ 计一次 GEMM |
+| $Q_{\text{bytes}}$ | 这一步从 HBM 读的字节 | 字节 | 至少包含层权重 + 历史 KV；还有激活、工作区 |
 
-- Prefill：$2 \times 34.36 \times 10^{9}$ FLOPs
-- Decode 一步：$2 \times 33.55 \times 10^{6}$ FLOPs
+Roofline 的讲法见 [NVIDIA Nsight Compute Roofline](https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#roofline) 与 Horace He 的 [Making Deep Learning Go Brrrr](https://horace.io/brrr_intro.html)。AI 低于 GPU 的「FLOPs/带宽」比值时，瓶颈在 Memory 而不是 Tensor Core。
+
+计 FLOPs 时，一次 $(m,k)\times(k,n)$ GEMM 约定为：
+
+$$
+F_{\text{GEMM}} = 2mkn
+$$
+
+| 符号 | 含义 | 本仓库约定 |
+| --- | --- | --- |
+| $m,n,k$ | 矩阵乘的三个尺寸 | $(m,k)$ 乘 $(k,n)$ 得到 $(m,n)$ |
+| $2$ | 每个输出元素一次乘再一次加 | 与 NVIDIA CUTLASS / 多数论文的 MAC=2 FLOPs 一致 |
+| $F_{\text{GEMM}}$ | 这次矩阵乘的浮点运算量 | 见 `flop_matmul` in `examples/ch00/kv_cache_memory.py` |
+
+教学 7B-like（$B=4,S=1024,H=32,d_h=128$）、只算一层 Attention 的 $QK^{\top}$ 与 $\alpha V$：
+
+$$
+\begin{aligned}
+F_{QK^{\top}} &= 2 \times (B H S_{\text{q}}) \times S_{\text{kv}} \times d_h \\
+F_{\alpha V} &= 2 \times (B H S_{\text{q}}) \times d_h \times S_{\text{kv}}
+\end{aligned}
+$$
+
+| 符号 | 含义 | Prefill | Decode 一步 |
+| --- | --- | --- | --- |
+| $B$ | batch | 4 | 4 |
+| $H$ | 头数 | 32 | 32 |
+| $S_{\text{q}}$ | Query 长度 | 1024（整段） | 1（新 token） |
+| $S_{\text{kv}}$ | Key/Value 长度 | 1024 | 1024（历史仍在） |
+| $d_h$ | 头维度 | 128 | 128 |
+| $F_{QK^{\top}}$ | score GEMM | $3.436\times 10^{10}$ | $3.355\times 10^{7}$ |
+| $F_{\alpha V}$ | 加权 V 的 GEMM | 与 $F_{QK^{\top}}$ 相同（$n$ 与 $k$ 对调，乘积不变） | 同左 |
+
+两段相加：
+
+$$
+F_{\text{prefill}}=2\times 34.36\times 10^{9},\qquad F_{\text{decode}}=2\times 33.55\times 10^{6}
+$$
+
+| 符号 | 含义 |
+| --- | --- |
+| $F_{\text{prefill}}$ | Prefill 一层 Attention 的 score + AV（不含 QKV 投影） |
+| $F_{\text{decode}}$ | Decode 一步、同一层的 score + AV |
+| 前导 $2\times$ | 把 $QK^{\top}$ 与 $\alpha V$ 两段加在一起，不是 GEMM 里的那个 $2mkn$ |
 
 Decode 计算量掉了约 **1000 倍**，但 KV 仍要按 1024 长度去读。所以 Decode 很容易变成 Memory Bound。这是第 2、3 篇的主题；本章只要接受：**快慢不能用一个 FLOPs 数字概括。**
 
