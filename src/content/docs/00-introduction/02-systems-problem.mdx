@@ -119,24 +119,28 @@ sequenceDiagram
   Note over S: B 继续；空出来的块给新请求
 ```
 
-```mermaid
-flowchart LR
-  classDef naive fill:#f3ddd6,stroke:#c47a6a,color:#3a241e,stroke-width:1.5px
-  classDef good fill:#dde8d6,stroke:#6a9a62,color:#1e2e1a,stroke-width:1.5px
+<div class="arch-compare">
 
+```mermaid
+flowchart TB
+  classDef naive fill:#f3ddd6,stroke:#c47a6a,color:#3a241e,stroke-width:1.5px
   subgraph Naive["朴素 Batch"]
-    direction TB
     N1(["凑齐 8 个"]):::naive --> N2["一起跑到全部结束"]:::naive
     N2 --> N3["短请求空等 / padding"]:::naive
   end
+```
 
+```mermaid
+flowchart TB
+  classDef good fill:#dde8d6,stroke:#6a9a62,color:#1e2e1a,stroke-width:1.5px
   subgraph System["推理系统"]
-    direction TB
     S1(["请求随时加入"]):::good --> S2["按 token budget 切块"]:::good
     S2 --> S3["KV 按块分配"]:::good
     S3 --> S4["完成即离开"]:::good
   end
 ```
+
+</div>
 
 ---
 

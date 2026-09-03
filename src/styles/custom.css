@@ -87,6 +87,26 @@ table {
   font-variant-numeric: tabular-nums;
 }
 
+.sl-markdown-content .arch-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin: 1.25rem 0 1.75rem;
+  align-items: stretch;
+}
+
+.sl-markdown-content .arch-compare pre.mermaid {
+  margin: 0;
+  height: 100%;
+  min-height: 100%;
+}
+
+@media (max-width: 720px) {
+  .sl-markdown-content .arch-compare {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Architecture diagrams: warm paper card, not a code block */
 .sl-markdown-content pre.mermaid {
   margin: 1.25rem 0 1.75rem;
