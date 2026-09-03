@@ -285,6 +285,20 @@ python3 -m unittest tests.test_ch00_ch01 -v
 
 ## 8. 性能分析
 
+一次请求里 GPU 在做两种完全不同的活：
+
+- **Prefill**：把整段 Prompt 一次算完，产出**第一个**输出 token。矩阵大，主要吃 **算力**（Tensor Core）。
+- **Decode**：之后每一步只生成 1 个新 token，却要把各层权重和已经缓存的 KV 再读一遍。计算量小，主要吃 **显存带宽**（HBM）。
+
+所以同一个“慢了”，不能只说“模型太慢”。要先问：慢在第一个字还没出来，还是字已经在蹦、但每个字都顿。用户侧对应两个常用指标（Serving 口径；是否含 tokenize、是否含排队，因系统而异）：
+
+| 指标 | 全称 | 用户感觉到的是 | 系统里主要在做什么 |
+| --- | --- | --- | --- |
+| TTFT | Time To First Token | 按下发送后，屏幕上出现**第一个字**要等多久 | 排队 + Prefill |
+| TPOT | Time Per Output Token | 第一个字出来之后，**每多一个字**平均再等多久 | 一步 Decode（当时的 batch 和 KV 长度） |
+
+相邻两个输出 token 的单次间隔有时叫 **ITL**（Inter-Token Latency）。TPOT 常常是这些间隔的平均：ITL 看“这一下卡了没有”，TPOT 看“整体打字速稳不稳”。定义见 [NVIDIA NIM 延迟指标](https://docs.nvidia.com/nim/large-language-models/latest/observability.html)（Last verified: 2026-09-03）。
+
 | 维度 | 这一层主要看什么 | 典型瓶颈 |
 | --- | --- | --- |
 | Compute | Prefill 的大 GEMM | Tensor Core 利用率 |
@@ -292,7 +306,7 @@ python3 -m unittest tests.test_ch00_ch01 -v
 | Communication | TP AllReduce、跨节点 PD | NVLink / IB |
 | Scheduling | 哪些请求进入这一轮 | KV 块不够、token budget |
 
-🚀 性能：全景阶段只要建立判断——延迟差，先问是 Gateway 排队、Prefill、Decode 还是采样；吞吐差，先问是 batch 太小、KV 碎片，还是多卡通信。
+🚀 性能：全景阶段只要建立判断——**TTFT** 差，先看排队还是 Prefill；**TPOT** 差，先看 Decode 的 batch 与 KV；吞吐差，先问是 batch 太小、KV 碎片，还是多卡通信。
 
 ---
 
@@ -364,11 +378,11 @@ Llama 3.1 70B: seq=131072 batch=1 ... (40.0000 GiB)
 2. 栈从 Gateway、Engine、Scheduler、KV、Runner 一直落到 GPU Kernel。
 3. 70B BF16 权重大约 140 GB，单卡通常放不下。
 4. 70B 在 8K 上单请求 KV 是 2.5 GiB，随 batch 与上下文线性涨。
-5. Prefill 和 Decode 会打到不同瓶颈，所以必须分层看。
+5. Prefill 一次算完整段 Prompt，容易把算力打满；Decode 每步只出一个 token，却要反复读权重和 KV，容易被带宽卡住。用户等到第一个字的时间是 TTFT，之后每个字的间隔是 TPOT。
 6. vLLM V1 用 EngineCore 把调度和执行拆开。
 
 ---
 
 ## 14. 下一章
 
-全景图解释了“有哪些层”。还没解释：**为什么这些层必须做成系统，而不能靠把模型写快一点解决。** 下一章用 TTFT、排队和 KV 增长说明推理是一个系统问题。
+全景图解释了“有哪些层”。还没解释：**为什么这些层必须做成系统，而不能靠把模型写快一点解决。** 下一章把排队、TTFT、TPOT 和 KV 增长拆开，说明推理是一个系统问题。
