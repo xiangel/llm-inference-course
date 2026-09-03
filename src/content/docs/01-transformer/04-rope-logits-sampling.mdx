@@ -202,15 +202,15 @@ Nucleus / top-p（Holtzman et al., [The Curious Case of Neural Text Degeneration
 
 $$
 \mathcal{V}_p=\Bigl\{x_{\pi(1)},\ldots,x_{\pi(k)}\Bigr\}
-\quad\text{其中 }k=\min\bigl\{k':\sum_{i=1}^{k'} p_{\pi(i)}\ge p\bigr\}
+\quad\text{其中 }k=\min\bigl\{k':\sum_{i=1}^{k'} p_{\pi(i)}\ge p_{\text{top}}\bigr\}
 $$
 
 | 符号 | 含义 |
 | --- | --- |
 | $p_i$ | softmax 之后、截断之前的概率 |
 | $\pi$ | 把概率从大到小排序的排列，$\,p_{\pi(1)}\ge p_{\pi(2)}\ge\cdots$ |
-| $p$ | top-p 阈值（HF `top_p`），例如 0.9 |
-| $k$ | 从最大项起、累计质量刚达到 $p$ 时的集合大小 |
+| $p_{\text{top}}$ | top-p 阈值（HF `top_p`），例如 0.9 |
+| $k$ | 从最大项起、累计质量刚达到 $p_{\text{top}}$ 时的集合大小 |
 | $\mathcal{V}_p$ | 保留下来的词表子集；其余 logits 在 softmax 前被打成 $-\infty$ |
 
 它丢掉的是累计概率之外的 **尾部质量**，不是固定比例的「种类」。实现顺序见 Hugging Face [Generation strategies](https://huggingface.co/docs/transformers/en/generation_strategies)（Last verified: 2026-09-03）。
