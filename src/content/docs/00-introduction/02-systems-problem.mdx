@@ -294,7 +294,7 @@ print('ratio', attention_scores_flops(4,32,1024,1024,128) / attention_scores_flo
 2. 请求长度未知，静态 batch 会制造空等和 padding。
 3. Prefill 与 Decode 的 FLOPs 可以差一个序列长度倍数。
 4. KV 把显存变成随时间变化的调度资源。
-5. 指标要拆开：TTFT、ITL、吞吐回答不同问题。
+5. 指标要拆开：TTFT 看第一个字，TPOT / ITL 看后续每个字，吞吐看整池产出。三者可以朝相反方向动。
 6. Kernel 优化不能替代调度。
 7. 引擎主循环是 schedule / execute / update，不是单次 generate。
 8. 后续所有组件都可以从这四个事实推出来。
