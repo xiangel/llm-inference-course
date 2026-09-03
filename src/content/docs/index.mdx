@@ -1,0 +1,52 @@
+---
+title: 大模型推理系统
+description: 从 Transformer、KV Cache 到 vLLM 与万卡推理。一本从模型计算原理走进推理引擎、GPU Kernel 与万卡 Serving 的系统构建书。
+template: splash
+hero:
+  title: 大模型推理系统
+  tagline: 从 Transformer、KV Cache 到 vLLM 与万卡推理
+  actions:
+    - text: 从 0.1 开始
+      link: /00-introduction/01-landscape/
+      icon: right-arrow
+      variant: primary
+    - text: GitHub
+      link: https://github.com/xiangel/llm-inference-course
+      icon: github
+      variant: minimal
+---
+
+import { Card, CardGrid } from "@astrojs/starlight/components";
+
+这不是 Transformer 入门、vLLM API 教程，也不是 CUDA 或 GPU 参数百科。它回答的是另一件事：**一个 Token 是怎么被算出来的，以及怎样把它变成可服务、可调度、可扩到万卡的系统。**
+
+<CardGrid stagger>
+  <Card title="先理解模型，再理解系统" icon="open-book">
+    从生成一个 Token 出发，经过 Attention、RoPE、Sampling，再进入 KV Cache、Scheduler 与 Engine。
+  </Card>
+  <Card title="用数字而不是口号" icon="seti:pipeline">
+    每个关键公式都会代入 Llama 3.1 或教学模型的具体尺寸，算出显存、FLOPs 和瓶颈。
+  </Card>
+  <Card title="能自己实现 Mini-vLLM" icon="seti:python">
+    先写可运行的教学实现，再对照 vLLM V1 的真实模块边界，不把简化模型说成源码。
+  </Card>
+  <Card title="从单卡走到万卡" icon="rocket">
+    路线覆盖 Kernel、量化、多 GPU、Serving Platform、容量规划与万卡容灾。
+  </Card>
+</CardGrid>
+
+## 当前进度
+
+已开放 **第 0 篇** 与 **第一篇**。后续篇章在目录中可见，正文将按同一模板陆续补齐。
+
+## 读者
+
+面向会 Python / Go / Java 的工程师，不要求深度学习研究背景、CUDA 专家经验或读过 vLLM。读完应能转向 LLM Inference / AI Infra 方向。
+
+## 怎么读
+
+问题 → 直觉 → 图 → 数学 → 代码 → 实验 → 源码 → 性能 → 总结。
+
+每章顶部有节号、难度和阅读时间。正文里会看到：
+
+💡 核心概念 · ⚠️ 常见误区 · 🔬 实验 · 💻 代码 · 📐 数学 · 🔎 源码 · 🚀 性能
