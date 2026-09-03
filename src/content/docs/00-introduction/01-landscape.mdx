@@ -119,30 +119,68 @@ vLLM、SGLang、TensorRT-LLM 的产品形态不同，但这条链是共用的。
 
 ```mermaid
 flowchart TB
-  Client["Client / SDK"] --> GW["LLM Gateway<br/>鉴权 · 路由 · 限流"]
-  GW --> Eng["Inference Engine"]
-  Eng --> Sched["Scheduler<br/>Token Budget / Continuous Batching"]
-  Sched --> KV["KV Cache Manager<br/>Block / BlockTable"]
-  Sched --> Runner["ModelRunner"]
+  classDef client fill:#fbf4e4,stroke:#c4923a,color:#2c2416,stroke-width:1.5px
+  classDef control fill:#f0e2c0,stroke:#c4923a,color:#2c2416,stroke-width:1.5px
+  classDef memory fill:#dcecf5,stroke:#4ea1d3,color:#1a3344,stroke-width:1.5px
+  classDef compute fill:#ead89a,stroke:#c4923a,color:#2c2416,stroke-width:1.5px
+  classDef device fill:#c4923a,stroke:#8a6a2e,color:#171410,stroke-width:1.8px
+  classDef sample fill:#f0d29a,stroke:#a67a2e,color:#171410,stroke-width:1.5px
+
+  subgraph Access["接入"]
+    Client(["Client / SDK"]):::client
+    GW["LLM Gateway<br/>鉴权 · 路由 · 限流"]:::control
+  end
+
+  subgraph Engine["推理引擎"]
+    Eng["Inference Engine"]:::control
+    Sched["Scheduler<br/>Token Budget / Continuous Batching"]:::control
+    KV[("KV Cache Manager<br/>Block / BlockTable")]:::memory
+    Runner["ModelRunner"]:::compute
+    Attn["Attention Kernel"]:::compute
+    Sam["Sampler"]:::sample
+  end
+
+  subgraph Device["加速器"]
+    GPU{{"GPU · HBM / SM / Tensor Core"}}:::device
+  end
+
+  Client --> GW --> Eng --> Sched
+  Sched --> KV
+  Sched --> Runner
   KV --> Runner
-  Runner --> Attn["Attention Kernel"]
-  Runner --> Sam["Sampler"]
-  Attn --> GPU["GPU<br/>HBM / SM / Tensor Core"]
-  Sam --> Client
+  Runner --> Attn --> GPU
+  Runner --> Sam
+  Sam -.-> Client
 ```
 
 生产系统往往在 Gateway 之外再加一层：
 
 ```mermaid
 flowchart LR
-  User --> GlobalGW["Global Gateway"]
-  GlobalGW --> Router["Model Router"]
-  Router --> C1["70B Cluster"]
-  Router --> C2["8B Cluster"]
-  Router --> C3["Prefill Cluster"]
-  C1 --> GPU1["GPU Pool"]
-  C2 --> GPU1
-  C3 --> GPU1
+  classDef client fill:#fbf4e4,stroke:#c4923a,color:#2c2416,stroke-width:1.5px
+  classDef control fill:#f0e2c0,stroke:#c4923a,color:#2c2416,stroke-width:1.5px
+  classDef compute fill:#ead89a,stroke:#c4923a,color:#2c2416,stroke-width:1.5px
+  classDef device fill:#c4923a,stroke:#8a6a2e,color:#171410,stroke-width:1.8px
+
+  subgraph Traffic["流量面"]
+    User(["用户"]):::client
+    GlobalGW["Global Gateway"]:::control
+    Router["Model Router"]:::control
+  end
+
+  subgraph Clusters["模型集群"]
+    C1["70B Cluster"]:::compute
+    C2["8B Cluster"]:::compute
+    C3["Prefill Cluster"]:::compute
+  end
+
+  subgraph Pool["算力"]
+    GPU1{{"GPU Pool"}}:::device
+  end
+
+  User --> GlobalGW --> Router
+  Router --> C1 & C2 & C3
+  C1 & C2 & C3 --> GPU1
 ```
 
 第 0.3 节会把这条线从 1 个 token 拉到万卡。现在只要记住：**Engine 不是平台，平台也不是 Kernel。**

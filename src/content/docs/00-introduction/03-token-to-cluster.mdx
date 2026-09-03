@@ -94,24 +94,47 @@ $$
 
 ```mermaid
 flowchart TB
-  T["1. Token<br/>logits → sample"] --> S["2. Sequence<br/>Prefill / Decode / KV"]
-  S --> E["3. Engine<br/>Scheduler + BlockManager"]
-  E --> MG["4. Multi-GPU<br/>TP / PP / DP / EP"]
-  MG --> DC["5. Datacenter<br/>Gateway · Router · GPU Pool"]
-  DC --> WK["6. 万卡集群<br/>Global Scheduler · PD Cluster · KV Infra"]
+  classDef client fill:#fbf4e4,stroke:#c4923a,color:#2c2416,stroke-width:1.5px
+  classDef control fill:#f0e2c0,stroke:#c4923a,color:#2c2416,stroke-width:1.5px
+  classDef compute fill:#ead89a,stroke:#c4923a,color:#2c2416,stroke-width:1.5px
+  classDef device fill:#c4923a,stroke:#8a6a2e,color:#171410,stroke-width:1.8px
+
+  T(["1 · Token<br/>logits → sample"]):::client
+  S["2 · Sequence<br/>Prefill / Decode / KV"]:::control
+  E["3 · Engine<br/>Scheduler + BlockManager"]:::control
+  MG["4 · Multi-GPU<br/>TP / PP / DP / EP"]:::compute
+  DC["5 · Datacenter<br/>Gateway · Router · GPU Pool"]:::compute
+  WK{{"6 · 万卡集群<br/>Global Scheduler · PD · KV Infra"}}:::device
+
+  T --> S --> E --> MG --> DC --> WK
 ```
 
 万卡级的示意（第十五篇才会展开实现）：
 
 ```mermaid
-flowchart LR
-  U[用户流量] --> GG[Global Gateway]
-  GG --> GR[Global Router]
-  GR --> PC[Prefill Cluster]
-  GR --> DC2[Decode Cluster]
-  PC -->|KV Transfer / RDMA| DC2
-  GR --> MC[其他 Model Cluster]
-  PC --> Net[NVLink / IB / NCCL]
+flowchart TB
+  classDef client fill:#fbf4e4,stroke:#c4923a,color:#2c2416,stroke-width:1.5px
+  classDef control fill:#f0e2c0,stroke:#c4923a,color:#2c2416,stroke-width:1.5px
+  classDef compute fill:#ead89a,stroke:#c4923a,color:#2c2416,stroke-width:1.5px
+  classDef memory fill:#dcecf5,stroke:#4ea1d3,color:#1a3344,stroke-width:1.5px
+  classDef device fill:#c4923a,stroke:#8a6a2e,color:#171410,stroke-width:1.8px
+
+  U(["用户流量"]):::client --> GG["Global Gateway"]:::control
+  GG --> GR["Global Router"]:::control
+
+  subgraph Compute["计算池"]
+    PC["Prefill Cluster"]:::compute
+    DC2["Decode Cluster"]:::compute
+    MC["其他 Model Cluster"]:::compute
+  end
+
+  Net{{"NVLink / IB / NCCL"}}:::device
+
+  GR --> PC
+  GR --> DC2
+  GR --> MC
+  PC -->|"KV Transfer / RDMA"| DC2
+  PC --> Net
   DC2 --> Net
 ```
 

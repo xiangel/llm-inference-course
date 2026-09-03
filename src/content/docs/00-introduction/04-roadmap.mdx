@@ -106,25 +106,48 @@ LLM Inference 的资料呈两极：一边是 Attention 公式，一边是“如�
 
 ```mermaid
 flowchart TB
-  P0["第 0 篇 地图"] --> P1["第一篇 模型计算"]
-  P1 --> P2["第二篇 Prefill/Decode/KV"]
-  P2 --> P3["第三篇 GPU / FlashAttention"]
-  P2 --> P4["第四篇 Scheduler / Paged KV"]
-  P3 --> P5["第五篇 Mini-vLLM"]
-  P4 --> P5
-  P5 --> P6["第六篇 vLLM V1"]
-  P6 --> P7["第七篇 Kernel"]
-  P6 --> P8["第八篇 Quantization"]
-  P6 --> P9["第九篇 Multi-GPU"]
-  P7 --> P10["第十篇 引擎对比"]
-  P8 --> P10
-  P9 --> P10
-  P10 --> P11["第十一篇 高级技术"]
-  P11 --> P12["第十二篇 Serving 平台"]
-  P12 --> P13["第十三篇 性能工程"]
-  P13 --> P14["第十四篇 容量与成本"]
-  P14 --> P15["第十五篇 万卡"]
-  P15 --> P16["第十六篇 总项目"]
+  classDef map fill:#fbf4e4,stroke:#c4923a,color:#2c2416,stroke-width:1.5px
+  classDef engine fill:#ead89a,stroke:#c4923a,color:#2c2416,stroke-width:1.5px
+  classDef hw fill:#dcecf5,stroke:#4ea1d3,color:#1a3344,stroke-width:1.5px
+  classDef prod fill:#c4923a,stroke:#8a6a2e,color:#171410,stroke-width:1.6px
+
+  subgraph Map["第 0–1 篇 · 先把计算看清"]
+    direction LR
+    P0(["第 0 篇 地图"]):::map --> P1["第一篇 模型计算"]:::map
+  end
+
+  subgraph Core["第 2–6 篇 · 引擎怎么跑起来"]
+    P2["第二篇 Prefill / Decode / KV"]:::engine
+    P3["第三篇 GPU / FlashAttention"]:::engine
+    P4["第四篇 Scheduler / Paged KV"]:::engine
+    P5["第五篇 Mini-vLLM"]:::engine
+    P6["第六篇 vLLM V1"]:::engine
+    P2 --> P3 & P4
+    P3 --> P5
+    P4 --> P5
+    P5 --> P6
+  end
+
+  subgraph Stack["第 7–10 篇 · 更快、更省、更多卡"]
+    P7["第七篇 Kernel"]:::hw
+    P8["第八篇 Quantization"]:::hw
+    P9["第九篇 Multi-GPU"]:::hw
+    P10["第十篇 引擎对比"]:::hw
+    P7 & P8 & P9 --> P10
+  end
+
+  subgraph Prod["第 11–16 篇 · 上线到万卡"]
+    direction LR
+    P11["十一 高级"]:::prod --> P12["十二 Serving"]:::prod
+    P12 --> P13["十三 性能"]:::prod
+    P13 --> P14["十四 容量"]:::prod
+    P14 --> P15["十五 万卡"]:::prod
+    P15 --> P16(["十六 总项目"]):::prod
+  end
+
+  P1 --> P2
+  P6 --> P7 & P8 & P9
+  P10 --> P11
 ```
 
 ---

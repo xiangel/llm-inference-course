@@ -94,27 +94,58 @@ Decode 一步的差别只有：**序列维对 Q 来说是 1**，K/V 会带上历
 
 ```mermaid
 flowchart TB
-  X["h: 每个 token 一条向量"] --> N1["RMSNorm"]
-  N1 --> QKV["Q / K / V 投影"]
-  QKV --> RoPE["RoPE on Q,K"]
-  RoPE --> Attn["因果 Attention"]
-  Attn --> O["W_O"]
-  O --> R1["残差 +"]
+  classDef compute fill:#ead89a,stroke:#c4923a,color:#2c2416,stroke-width:1.5px
+  classDef sample fill:#f0d29a,stroke:#a67a2e,color:#171410,stroke-width:1.5px
+  classDef memory fill:#dcecf5,stroke:#4ea1d3,color:#1a3344,stroke-width:1.5px
+
+  X(["h：每个 token 一条向量"]):::memory
+
+  subgraph AttnPath["注意力子层"]
+    N1["RMSNorm"]:::compute
+    QKV["Q / K / V 投影"]:::compute
+    RoPE["RoPE on Q, K"]:::compute
+    Attn["因果 Attention"]:::compute
+    O["W_O"]:::compute
+  end
+
+  R1(["残差 +"]):::sample
+
+  subgraph FfnPath["前馈子层"]
+    N2["RMSNorm"]:::compute
+    FFN["FFN / SwiGLU"]:::compute
+  end
+
+  R2(["残差 +"]):::sample
+  Next(["下一层或 lm_head"]):::memory
+
+  X --> N1 --> QKV --> RoPE --> Attn --> O --> R1
   X --> R1
-  R1 --> N2["RMSNorm"]
-  N2 --> FFN["FFN / SwiGLU"]
-  FFN --> R2["残差 +"]
-  R1 --> R2
-  R2 --> Next["下一层或 lm_head"]
+  R1 --> N2 --> FFN --> R2
+  R1 --> R2 --> Next
 ```
 
 三类 Transformer：
 
 ```mermaid
 flowchart LR
-  Enc["Encoder-only<br/>BERT 可看全句"] --> Task1["分类 / 检索"]
-  Dec["Decoder-only<br/>GPT Llama 只看前文"] --> Task2["聊天 / 续写"]
-  ED["Encoder-Decoder<br/>T5"] --> Task3["翻译 / 摘要"]
+  classDef enc fill:#dcecf5,stroke:#4ea1d3,color:#1a3344,stroke-width:1.5px
+  classDef dec fill:#c4923a,stroke:#8a6a2e,color:#171410,stroke-width:1.6px
+  classDef ed fill:#ead89a,stroke:#c4923a,color:#2c2416,stroke-width:1.5px
+
+  subgraph Enc["Encoder-only"]
+    direction TB
+    E1["BERT 可看全句"]:::enc --> T1["分类 / 检索"]:::enc
+  end
+
+  subgraph Dec["Decoder-only"]
+    direction TB
+    D1["GPT / Llama 只看前文"]:::dec --> T2["聊天 / 续写"]:::dec
+  end
+
+  subgraph ED["Encoder-Decoder"]
+    direction TB
+    ED1["T5"]:::ed --> T3["翻译 / 摘要"]:::ed
+  end
 ```
 
 ---

@@ -99,15 +99,17 @@ Orca（Yu et al., OSDI 2022）指出：应该在 **iteration 级别** 让请求�
 
 ```mermaid
 sequenceDiagram
-  participant A as Request A<br/>长 Prompt 短输出
-  participant B as Request B<br/>短 Prompt 长输出
+  autonumber
+  actor A as Request A<br/>长 Prompt · 短输出
+  actor B as Request B<br/>短 Prompt · 长输出
   participant S as Scheduler
   participant G as GPU
+
   A->>S: 到达
   S->>G: Prefill A
   B->>S: 到达
   Note over S: 若静态 batch<br/>B 必须等 A 整段结束
-  S->>G: Prefill B（可与 A 的 decode 交错）
+  S->>G: Prefill B（可与 A 的 Decode 交错）
   loop 每个 token
     S->>G: Decode 当前 running 集合
     G-->>A: token
@@ -118,15 +120,21 @@ sequenceDiagram
 ```
 
 ```mermaid
-flowchart TB
+flowchart LR
+  classDef naive fill:#f3ddd6,stroke:#c47a6a,color:#3a241e,stroke-width:1.5px
+  classDef good fill:#dde8d6,stroke:#6a9a62,color:#1e2e1a,stroke-width:1.5px
+
   subgraph Naive["朴素 Batch"]
-    N1["凑齐 8 个"] --> N2["一起跑到全部结束"]
-    N2 --> N3["短请求空等 / padding"]
+    direction TB
+    N1(["凑齐 8 个"]):::naive --> N2["一起跑到全部结束"]:::naive
+    N2 --> N3["短请求空等 / padding"]:::naive
   end
+
   subgraph System["推理系统"]
-    S1["请求随时加入"] --> S2["按 token budget 切块"]
-    S2 --> S3["KV 按块分配"]
-    S3 --> S4["完成即离开"]
+    direction TB
+    S1(["请求随时加入"]):::good --> S2["按 token budget 切块"]:::good
+    S2 --> S3["KV 按块分配"]:::good
+    S3 --> S4["完成即离开"]:::good
   end
 ```
 
