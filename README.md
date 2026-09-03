@@ -38,7 +38,6 @@ src/content/docs/     书籍正文（Starlight）
 examples/             可运行教学脚本（NumPy）
 tests/                对教学数字与算法的单测
 mini-vllm/            第五篇教学引擎（占位）
-docs/                 旧 VitePress 课程存档，不再作为站点源
 ```
 
 ## 进度
