@@ -93,20 +93,40 @@ Decode 新位置 $T+1$：
 ## 4. 架构图
 
 ```mermaid
-flowchart LR
-  X["X: seq × hidden"] --> WQ["W_Q"]
-  X --> WK["W_K"]
-  X --> WV["W_V"]
-  WQ --> Q["Q"]
-  WK --> K["K"]
-  WV --> V["V"]
-  Q --> S["scores = QKᵀ / √d"]
+flowchart TB
+  classDef memory fill:#dcecf5,stroke:#4ea1d3,color:#1a3344,stroke-width:1.5px
+  classDef compute fill:#ead89a,stroke:#c4923a,color:#2c2416,stroke-width:1.5px
+  classDef sample fill:#f0d29a,stroke:#a67a2e,color:#171410,stroke-width:1.5px
+
+  X(["X：seq × hidden"]):::memory
+
+  subgraph Proj["线性投影"]
+    WQ["W_Q"]:::compute
+    WK["W_K"]:::compute
+    WV["W_V"]:::compute
+  end
+
+  Q(["Q"]):::sample
+  K(["K"]):::sample
+  V(["V"]):::memory
+
+  subgraph Attend["因果注意力"]
+    S["scores = QKᵀ / √d"]:::compute
+    M["+ 因果 mask"]:::compute
+    SM["softmax"]:::compute
+    O["weights × V"]:::compute
+  end
+
+  WO["W_O"]:::compute
+
+  X --> WQ & WK & WV
+  WQ --> Q
+  WK --> K
+  WV --> V
+  Q --> S
   K --> S
-  S --> M["+ 因果 mask"]
-  M --> SM["softmax"]
-  SM --> O["weights × V"]
-  V --> O
-  O --> WO["W_O"]
+  S --> M --> SM --> O
+  V --> O --> WO
 ```
 
 因果可见性（行=Query 位置，列=Key 位置）：

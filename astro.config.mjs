@@ -13,8 +13,64 @@ export default defineConfig({
   base,
   integrations: [
     mermaid({
-      theme: "dark",
+      theme: "neutral",
       autoTheme: true,
+      mermaidConfig: {
+        fontFamily:
+          "IBM Plex Sans, Noto Sans SC, PingFang SC, Microsoft YaHei, sans-serif",
+        flowchart: {
+          curve: "basis",
+          padding: 18,
+          nodeSpacing: 28,
+          rankSpacing: 42,
+          htmlLabels: true,
+          wrappingWidth: 220,
+          diagramPadding: 8,
+        },
+        sequence: {
+          actorMargin: 42,
+          messageMargin: 36,
+          boxMargin: 10,
+          noteMargin: 12,
+          diagramMarginX: 12,
+          diagramMarginY: 14,
+          mirrorActors: false,
+          useMaxWidth: true,
+        },
+        themeVariables: {
+          fontFamily:
+            "IBM Plex Sans, Noto Sans SC, PingFang SC, Microsoft YaHei, sans-serif",
+          primaryColor: "#f4ead2",
+          primaryTextColor: "#2c2416",
+          primaryBorderColor: "#c4923a",
+          secondaryColor: "#e7f2f8",
+          secondaryTextColor: "#1a3344",
+          secondaryBorderColor: "#4ea1d3",
+          tertiaryColor: "#fbf6ea",
+          lineColor: "#8a6a2e",
+          textColor: "#2c2416",
+          clusterBkg: "#faf6eeaa",
+          clusterBorder: "#c4923a",
+          titleColor: "#8a6a2e",
+          edgeLabelBackground: "#fbf6ea",
+          actorBkg: "#f4ead2",
+          actorBorder: "#c4923a",
+          actorTextColor: "#2c2416",
+          actorLineColor: "#c4923a",
+          signalColor: "#8a6a2e",
+          signalTextColor: "#2c2416",
+          labelBoxBkgColor: "#fbf6ea",
+          labelBoxBorderColor: "#c4923a",
+          labelTextColor: "#2c2416",
+          loopTextColor: "#2c2416",
+          noteBkgColor: "#f0d29a",
+          noteTextColor: "#171410",
+          noteBorderColor: "#c4923a",
+          activationBkgColor: "#efe0b8",
+          activationBorderColor: "#c4923a",
+          sequenceNumberColor: "#171410",
+        },
+      },
     }),
     starlight({
       title: "大模型推理系统",
@@ -56,15 +112,7 @@ export default defineConfig({
         },
       ],
       sidebar: [
-        {
-          label: "第 0 篇 · 这本书讲什么",
-          items: [
-            { label: "0.1 大模型推理系统全景", slug: "00-introduction/01-landscape" },
-            { label: "0.2 为什么推理是一个系统问题", slug: "00-introduction/02-systems-problem" },
-            { label: "0.3 从一个 Token 到万卡集群", slug: "00-introduction/03-token-to-cluster" },
-            { label: "0.4 全书学习路线", slug: "00-introduction/04-roadmap" },
-          ],
-        },
+        { label: "第 0 篇 · 这本书讲什么", slug: "00-introduction" },
         {
           label: "第一篇 · 理解 LLM 推理",
           items: [
@@ -101,5 +149,11 @@ export default defineConfig({
   markdown: {
     remarkPlugins: [remarkMath],
     rehypePlugins: [rehypeKatex],
+  },
+  redirects: {
+    "/00-introduction/01-landscape": "/00-introduction",
+    "/00-introduction/02-systems-problem": "/00-introduction",
+    "/00-introduction/03-token-to-cluster": "/00-introduction",
+    "/00-introduction/04-roadmap": "/00-introduction",
   },
 });

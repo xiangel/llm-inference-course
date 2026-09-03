@@ -11,5 +11,5 @@ description: "投机解码、长上下文、KV 压缩、PD 分离与 KV Transfer
 
 请先读完：
 
-- [0.1 大模型推理系统全景](/00-introduction/01-landscape/)
+- [第 0 篇：这本书讲什么](/00-introduction/)
 - [第一篇：理解 LLM 推理](/01-transformer/01-generate-one-token/)

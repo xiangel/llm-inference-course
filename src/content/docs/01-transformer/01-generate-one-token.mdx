@@ -18,7 +18,7 @@ import ChapterMeta from "../../../components/ChapterMeta.astro";
   section="1.1"
   difficulty={2}
   readingTime={28}
-  prev={{ href: "/00-introduction/04-roadmap/", title: "全书学习路线" }}
+  prev={{ href: "/00-introduction/", title: "这本书讲什么" }}
   next={{ href: "/01-transformer/02-transformer-inference/", title: "Transformer 在推理时做了什么" }}
 />
 
@@ -95,33 +95,50 @@ $\tau$ 是温度。贪心则取 $\arg\max z_i$，不必经过采样。
 
 ```mermaid
 flowchart LR
-  Text["文本 Prompt"] --> Tok["Tokenizer"]
-  Tok --> Ids["token ids"]
-  Ids --> Emb["Embedding"]
-  Emb --> Blocks["L × Transformer Block"]
-  Blocks --> Last["取最后位置 hidden"]
-  Last --> Head["lm_head"]
-  Head --> Logits["logits 长度 = 词表"]
-  Logits --> Sam["Sampler"]
-  Sam --> New["new token id"]
-  New --> Ids
+  classDef client fill:#fbf4e4,stroke:#c4923a,color:#2c2416,stroke-width:1.5px
+  classDef control fill:#f0e2c0,stroke:#c4923a,color:#2c2416,stroke-width:1.5px
+  classDef compute fill:#ead89a,stroke:#c4923a,color:#2c2416,stroke-width:1.5px
+  classDef sample fill:#f0d29a,stroke:#a67a2e,color:#171410,stroke-width:1.5px
+
+  subgraph In["输入"]
+    Text(["文本 Prompt"]):::client --> Tok["Tokenizer"]:::control
+    Tok --> Ids["token ids"]:::control
+  end
+
+  subgraph Model["模型"]
+    Emb["Embedding"]:::compute
+    Blocks["L × Transformer Block"]:::compute
+    Last["取最后位置 hidden"]:::compute
+    Head["lm_head"]:::compute
+  end
+
+  subgraph Out["采样"]
+    Logits["logits · 长度 = 词表"]:::sample
+    Sam["Sampler"]:::sample
+    New(["new token id"]):::sample
+  end
+
+  Ids --> Emb --> Blocks --> Last --> Head --> Logits --> Sam --> New
+  New -.-> Ids
 ```
 
 时序（三个输出 token）：
 
 ```mermaid
 sequenceDiagram
-  participant P as Prompt ids
+  autonumber
+  actor P as Prompt ids
   participant M as Model forward
   participant S as Sampler
+
   P->>M: 全部 prompt
-  M->>S: logits at last prompt position
+  M->>S: logits @ last prompt position
   S-->>P: token t1
   P->>M: prompt + t1
-  M->>S: logits at t1
+  M->>S: logits @ t1
   S-->>P: token t2
   P->>M: prompt + t1 + t2
-  M->>S: logits at t2
+  M->>S: logits @ t2
 ```
 
 有 KV Cache 时，后两轮不必把 prompt 再算一遍。本章玩具代码仍整段重算，便于打印。

@@ -14,12 +14,13 @@ interface Props {
 
 const { section, difficulty, readingTime, prev, next } = Astro.props;
 const stars = "★".repeat(difficulty) + "☆".repeat(5 - difficulty);
+const kicker = section.includes(".") ? `第 ${section} 节` : `第 ${section} 篇`;
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const withBase = (href: string) => `${base}${href.startsWith("/") ? href : `/${href}`}`;
 ---
 
 <aside class="chapter-meta" aria-label="章节信息">
-  <p class="chapter-meta__kicker">第 {section} 节</p>
+  <p class="chapter-meta__kicker">{kicker}</p>
   <div class="chapter-meta__row">
     <span>难度：{stars}</span>
     <span>阅读时间：{readingTime} min</span>

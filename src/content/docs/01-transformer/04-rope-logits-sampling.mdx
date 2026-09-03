@@ -100,16 +100,27 @@ top-k 与 top-p 的顺序会影响集合。教学代码按 **先温度，再 top
 ## 4. 架构图
 
 ```mermaid
-flowchart TB
-  QK["Q, K"] --> Rot["RoPE 旋转"]
-  Rot --> Attn["Attention"]
-  Attn --> Layers["其余层"]
-  Layers --> Z["logits z"]
-  Z --> T["÷ temperature"]
-  T --> K["top-k 截断"]
-  K --> P["top-p 截断"]
-  P --> SM["softmax"]
-  SM --> Draw["sample / argmax"]
+flowchart LR
+  classDef compute fill:#ead89a,stroke:#c4923a,color:#2c2416,stroke-width:1.5px
+  classDef sample fill:#f0d29a,stroke:#a67a2e,color:#171410,stroke-width:1.5px
+
+  subgraph Pos["位置"]
+    QK(["Q, K"]):::compute --> Rot["RoPE 旋转"]:::compute
+    Rot --> Attn["Attention"]:::compute
+    Attn --> Layers["其余层"]:::compute
+  end
+
+  subgraph Sample["采样"]
+    Z["logits z"]:::sample
+    T["÷ temperature"]:::sample
+    K["top-k 截断"]:::sample
+    P["top-p 截断"]:::sample
+    SM["softmax"]:::sample
+    Draw(["sample / argmax"]):::sample
+    Z --> T --> K --> P --> SM --> Draw
+  end
+
+  Layers --> Z
 ```
 
 两种 RoPE 布局（同一组频率，不同维度配对）：
