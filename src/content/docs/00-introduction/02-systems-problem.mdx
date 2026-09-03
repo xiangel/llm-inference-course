@@ -146,11 +146,14 @@ flowchart TB
 
 定义三个用户能感知的量（名称以常见 Serving 口径为准，具体统计窗口因系统而异）：
 
-| 指标 | 含义 | 主要由谁决定 |
-| --- | --- | --- |
-| TTFT | 第一个输出 token 的时间 | 排队 + Prefill |
-| TPOT / ITL | 后续相邻 token 的间隔 | Decode + 当前 batch |
-| Throughput | 单位时间产出的 token 数 | 调度 + 并发 + Kernel |
+| 指标 | 全称 | 含义 | 用户在等什么 |
+| --- | --- | --- | --- |
+| TTFT | Time To First Token | 从请求进入系统到发出**第一个**输出 token | 对话框开始出字 |
+| TPOT | Time Per Output Token | 第一个 token 之后，平均每再生成 **一个** token 的时间 | 字一个一个往外蹦的节奏 |
+| ITL | Inter-Token Latency | 相邻两个输出 token 的间隔；TPOT 常是 ITL 的平均 | 某一次突然卡顿 |
+| Throughput | — | 单位时间产出的 token 数（可按请求或按集群计） | 系统整体忙不忙，不是“我这条会不会快” |
+
+对应到上一节的时间分解：TTFT 主要是 $T_{\text{queue}}+T_{\text{prefill}}$；TPOT 接近 $T_{\text{decode}}$。排队、tokenize、是否把第一个 Decode 算进 TTFT，各家产品并不完全相同。对照时先核对窗口，不要直接比两个数字。见 [NVIDIA NIM 延迟指标](https://docs.nvidia.com/nim/large-language-models/latest/observability.html)（Last verified: 2026-09-03）。
 
 对 Decode，每步的算术强度大致是：
 
@@ -335,7 +338,7 @@ print('ratio', attention_scores_flops(4,32,1024,1024,128) / attention_scores_flo
 2. 请求长度未知，静态 batch 会制造空等和 padding。
 3. Prefill 与 Decode 的 FLOPs 可以差一个序列长度倍数。
 4. KV 把显存变成随时间变化的调度资源。
-5. 指标要拆开：TTFT、ITL、吞吐回答不同问题。
+5. 指标要拆开：TTFT 看第一个字，TPOT / ITL 看后续每个字，吞吐看整池产出。三者可以朝相反方向动。
 6. Kernel 优化不能替代调度。
 7. 引擎主循环是 schedule / execute / update，不是单次 generate。
 8. 后续所有组件都可以从这四个事实推出来。
