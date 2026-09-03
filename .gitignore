@@ -1,9 +1,18 @@
 # Dependencies
 node_modules
 
-# VitePress
+# Astro / Starlight
+dist
+.astro
+
+# VitePress (legacy course site, kept for git history)
 docs/.vitepress/cache
 docs/.vitepress/dist
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
 
 # Logs
 *.log

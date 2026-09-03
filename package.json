@@ -1,14 +1,21 @@
 {
-  "name": "llm-inference-course",
+  "name": "llm-inference-book",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vitepress dev docs --port 43217 --host 0.0.0.0",
-    "build": "vitepress build docs",
-    "preview": "vitepress preview docs --port 43217 --host 0.0.0.0"
+    "dev": "astro dev --port 43217 --host 0.0.0.0",
+    "build": "astro build",
+    "preview": "astro preview --port 43217 --host 0.0.0.0",
+    "test": "python3 -m unittest discover -s tests -v"
   },
-  "devDependencies": {
-    "markdown-it-mathjax3": "^4.3.2",
-    "vitepress": "^1.6.4"
+  "dependencies": {
+    "@astrojs/starlight": "^0.36.0",
+    "astro": "^5.14.0",
+    "astro-mermaid": "^1.0.4",
+    "katex": "^0.16.22",
+    "mermaid": "^11.6.0",
+    "rehype-katex": "^7.0.1",
+    "remark-math": "^6.0.0",
+    "sharp": "^0.34.2"
   }
 }

@@ -1,45 +1,50 @@
-# 大模型推理课程
+# 《大模型推理系统》
 
-一门从第一性原理讲到生产系统的 LLM 推理课。站点用 [VitePress](https://vitepress.dev/) 构建，正文是 Markdown，交互实验是 Vue 组件。
+副标题：从 Transformer、KV Cache 到 vLLM 与万卡推理
 
-仓库：[github.com/xiangel/llm-inference-course](https://github.com/xiangel/llm-inference-course)  
-线上：[xiangel.github.io/llm-inference-course](https://xiangel.github.io/llm-inference-course/)
+**LLM Inference Systems** — From Transformer and KV Cache to vLLM and Large-Scale Inference Infrastructure
 
-目前开放完整 **15 章**：从一次 LLM 请求、Token、Transformer 与 KV Cache，到 vLLM 服务化、nano-vLLM 源码阅读和毕业项目。
+这是一本推理系统构建书，不是 Transformer 入门、vLLM API 教程或 CUDA 手册。站点用 [Astro Starlight](https://starlight.astro.build/) 构建。
+
+线上（GitHub Pages）：[xiangel.github.io/llm-inference-course](https://xiangel.github.io/llm-inference-course/)  
+仓库：[github.com/xiangel/llm-inference-course](https://github.com/xiangel/llm-inference-course)
+
+当前开放：**第 0 篇**（这本书讲什么）与 **第一篇**（理解 LLM 推理）。后续篇章在目录中占位。
 
 ## 本地预览
 
-需要 Node.js 18+。
+需要 Node.js 18+（CI 使用 22）和 Python 3.10+（示例需要 NumPy）。
 
 ```bash
 npm install
-npm run dev
+npm run dev          # http://localhost:43217
+python3 -m pip install -r requirements-examples.txt
+python3 -m unittest tests.test_ch00_ch01 -v
 ```
 
-浏览器打开终端里给出的地址（默认 `http://localhost:43217`）。
-
 ```bash
-npm run build    # 产出 docs/.vitepress/dist
-npm run preview  # 预览构建结果
+npm run build        # 产出 dist/
+npm run preview
 ```
 
 ## GitHub Pages
 
-推送到 `main` 后，[Deploy GitHub Pages](https://github.com/xiangel/llm-inference-course/actions) 会构建并发布。第一次需要在仓库 **Settings → Pages → Source** 选 **GitHub Actions**。
+推送到 `main` 后，Deploy GitHub Pages 会构建 `dist/`。仓库 Pages 路径是 `/llm-inference-course/`。
 
-项目站路径是 `/llm-inference-course/`，构建时已写入，不必再设变量。
+## 仓库结构
 
-## 访问统计
+```
+src/content/docs/     书籍正文（Starlight）
+examples/             可运行教学脚本（NumPy）
+tests/                对教学数字与算法的单测
+mini-vllm/            第五篇教学引擎（占位）
+docs/                 旧 VitePress 课程存档，不再作为站点源
+```
 
-站点使用免费的 [Cloudflare Web Analytics](https://developers.cloudflare.com/web-analytics/) 统计页面浏览、访客、来源、热门页面和 Core Web Vitals。它通过手动 beacon 接入 GitHub Pages，并开启 SPA 路由统计。
+## 进度
 
-浏览器广告拦截器可能阻止统计脚本；这不会影响课程网站本身。
-
-## 课程结构
-
-| 阶段 | 章节 | 状态 |
-| --- | --- | --- |
-| A 基础直觉 | 0 请求 · 1 Token · 2 Transformer · 3 Attention | 已开放 |
-| B 推理基础 | 4 采样 · 5 KV Cache · 6 性能指标 · 7 GPU 瓶颈 | 已开放 |
-| C 推理服务与优化 | 8 部署 vLLM · 9 连续批处理 · 10 PagedAttention · 11 量化与投机解码 | 已开放 |
-| D 源码与毕业项目 | 12 nano-vLLM · 13 vLLM V1 · 14 毕业项目 | 已开放 |
+| 篇 | 状态 |
+| --- | --- |
+| 第 0 篇 这本书讲什么 | 已开放 |
+| 第一篇 理解 LLM 推理 | 已开放 |
+| 第二篇–第十六篇 | 目录占位，正文写作中 |

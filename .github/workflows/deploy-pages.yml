@@ -23,14 +23,19 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - run: npm ci
+      - run: python3 -m pip install -r requirements-examples.txt
+      - run: python3 -m unittest tests.test_ch00_ch01 -v
       - name: Build
         run: npm run build
         env:
-          VITEPRESS_BASE: ${{ vars.VITEPRESS_BASE || '/llm-inference-course/' }}
+          STARLIGHT_BASE: ${{ vars.STARLIGHT_BASE || '/llm-inference-course/' }}
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/.vitepress/dist
+          path: dist
 
   deploy:
     needs: build
