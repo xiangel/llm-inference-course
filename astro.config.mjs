@@ -76,6 +76,9 @@ export default defineConfig({
       title: "大模型推理系统",
       description:
         "从 Transformer、KV Cache 到 vLLM 与万卡推理：一本推理系统构建书",
+      components: {
+        Hero: "./src/components/Hero.astro",
+      },
       defaultLocale: "root",
       locales: {
         root: { label: "简体中文", lang: "zh-CN" },
