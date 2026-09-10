@@ -9,7 +9,7 @@
 线上（GitHub Pages）：[xiangel.github.io/llm-inference-course](https://xiangel.github.io/llm-inference-course/)  
 仓库：[github.com/xiangel/llm-inference-course](https://github.com/xiangel/llm-inference-course)
 
-当前开放：**第 0 篇**（这本书讲什么）与 **第一篇**（理解 LLM 推理）。第二篇起正文未写，[后续篇章目录](src/content/docs/later-chapters.md) 已列出各节标题。
+当前开放：**第 0 篇**、**第一篇**，以及 **3.1 GPU 是什么、现在有哪些卡**。其余后续篇章见 [后续篇章目录](src/content/docs/later-chapters.md)。
 
 ## 本地预览
 
@@ -47,7 +47,7 @@ mini-vllm/            第五篇教学引擎（占位）
 | 第 0 篇 这本书讲什么 | 已开放 |
 | 第一篇 理解 LLM 推理（1.1–1.4） | 已开放 |
 | 第二篇 Prefill、Decode 与 KV Cache | 节标题已排，正文写作中 |
-| 第三篇 GPU 与 Attention | 节标题已排，正文写作中 |
+| 第三篇 GPU 与 Attention（3.1 硬件与现有卡） | 3.1 已开放；3.2–3.6 写作中 |
 | 第四篇 Batch、调度与分页 KV | 节标题已排，正文写作中 |
 | 第五篇 从零实现 Mini-vLLM | 节标题已排，正文写作中 |
 | 第六篇 走进 vLLM | 节标题已排，正文写作中 |

@@ -3,7 +3,7 @@ title: "后续篇章目录"
 description: "第二篇到第十六篇已经排好的章节标题。正文尚未开放；写的时候按这个顺序带概念。"
 ---
 
-第 0 篇和第一篇已经开放。下面是后续各篇的**章节标题**，按概念出场顺序排：每一节只新带出紧挨着的那一层，不提前使用后面才出现的名字。
+第 0 篇、第一篇和 **3.1 GPU 是什么、现在有哪些卡** 已经开放。下面是后续各篇的**章节标题**，按概念出场顺序排：每一节只新带出紧挨着的那一层，不提前使用后面才出现的名字。
 
 正文尚未开放。各篇占位页重复同一份目录，写正文时按它拆节。
 
@@ -20,6 +20,7 @@ description: "第二篇到第十六篇已经排好的章节标题。正文尚未
 | 1.2 | [Transformer 在推理时做了什么](../01-transformer/02-transformer-inference/) |
 | 1.3 | [Attention 到底在计算什么](../01-transformer/03-attention/) |
 | 1.4 | [RoPE、Logits 与 Sampling](../01-transformer/04-rope-logits-sampling/) |
+| 3.1 | [GPU 是什么、现在有哪些卡](../03-gpu/01-hardware/) |
 
 ## 第二篇 · Prefill、Decode 与 KV Cache
 
@@ -38,17 +39,18 @@ description: "第二篇到第十六篇已经排好的章节标题。正文尚未
 
 ## 第三篇 · GPU 与 Attention
 
-本篇问题：**上面的快慢分叉，在 GPU 上对应什么？**
+本篇问题：**推理卡上有什么？现有规格怎么读？快慢分叉在 GPU 上对应什么？**
 
-| 节 | 标题 | 这一节带出什么 |
-| --- | --- | --- |
-| 3.1 | GPU 执行一次 forward 时发生了什么 | SM、HBM、Kernel launch |
-| 3.2 | 算力、带宽和算术强度 | Roofline |
-| 3.3 | Decode 为什么容易 Memory Bound | 读权重 + 读 KV |
-| 3.4 | FlashAttention 减少的是哪一次写回 | FlashAttention |
-| 3.5 | 和 PagedAttention 的分工 | 计算核 vs 显存管理 |
+| 节 | 标题 | 这一节带出什么 | 状态 |
+| --- | --- | --- | --- |
+| 3.1 | [GPU 是什么、现在有哪些卡](../03-gpu/01-hardware/) | HBM、带宽、A100/H100/H200/B200 | 已开放 |
+| 3.2 | GPU 执行一次 forward 时发生了什么 | SM、Kernel launch | 写作中 |
+| 3.3 | 算力、带宽和算术强度 | Roofline | 写作中 |
+| 3.4 | Decode 为什么容易 Memory Bound | 读权重 + 读 KV | 写作中 |
+| 3.5 | FlashAttention 减少的是哪一次写回 | FlashAttention | 写作中 |
+| 3.6 | 和 PagedAttention 的分工 | 计算核 vs 显存管理 | 写作中 |
 
-占位页：[第三篇](../03-gpu-attention/)
+其余各节占位：[GPU 执行与 FlashAttention](../03-gpu-attention/)
 
 ## 第四篇 · Batch、调度与分页 KV
 

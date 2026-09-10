@@ -131,7 +131,13 @@ export default defineConfig({
           items: [
             { label: "后续篇章目录", slug: "later-chapters" },
             { label: "第二篇 · Prefill、Decode 与 KV Cache", slug: "02-prefill-decode-kv-cache" },
-            { label: "第三篇 · GPU 与 Attention", slug: "03-gpu-attention" },
+            {
+              label: "第三篇 · GPU 与 Attention",
+              items: [
+                { label: "3.1 GPU 是什么、现在有哪些卡", slug: "03-gpu/01-hardware" },
+                { label: "3.2–3.6 执行模型与 FlashAttention", slug: "03-gpu-attention" },
+              ],
+            },
             { label: "第四篇 · Batch、调度与分页 KV", slug: "04-batching-scheduler" },
             { label: "第五篇 · 从零实现 Mini-vLLM", slug: "05-mini-vllm" },
             { label: "第六篇 · 走进 vLLM", slug: "06-vllm" },
