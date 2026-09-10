@@ -1,15 +1,24 @@
 ---
 title: "第十三篇 · 性能工程"
-description: "Benchmark、Profiling 与系统化优化闭环。"
+description: "Benchmark 条件、从 TTFT/TPOT/吞吐反查一层，以及优化闭环与假胜利。"
 ---
 
-# 第十三篇 · 性能工程
+本篇正文尚未开放。章节标题已排好，写正文时按这个顺序带概念。
 
-本篇正文尚未开放。当前书籍先完成 **第 0 篇** 与 **第一篇**。
+## 本篇要解决的问题
 
-13.1–13.12 Benchmark → Profile → Optimize → Verify
+**数字怎样测、慢怎样定位、改完怎样证明没把别的打爆？**
 
-请先读完：
+## 章节目录
 
-- [第 0 篇：这本书讲什么](/00-introduction/)
-- [第一篇：理解 LLM 推理](/01-transformer/01-generate-one-token/)
+| 节 | 标题 | 这一节带出什么 |
+| --- | --- | --- |
+| 13.1 | Benchmark 必须写清的条件 | 可复现实验 |
+| 13.2 | 从 TTFT / TPOT / 吞吐反查一层 | 分层诊断 |
+| 13.3 | 优化闭环：改一处、验一处 | 闭环 |
+| 13.4 | 假胜利：吞吐上去、首字炸掉 | 指标耦合 |
+
+完整目录见 [后续篇章目录](../later-chapters/)。请先读完：
+
+- [第 0 篇：这本书讲什么](../00-introduction/)
+- [第一篇：理解 LLM 推理](../01-transformer/01-generate-one-token/)
