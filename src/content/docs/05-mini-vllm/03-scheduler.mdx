@@ -1,0 +1,73 @@
+---
+title: "Scheduler：选出这一 iteration 的 batch"
+description: "对照第四篇的策略，读 Mini-vLLM 如何组 Prefill 或 Decode batch，以及它故意不做的混合 kernel。"
+sidebar:
+  order: 3
+tags:
+  - mini-vllm
+  - scheduler
+difficulty: intermediate
+section: "5.3"
+readingTime: 16
+---
+
+import ChapterMeta from "../../../components/ChapterMeta.astro";
+
+<ChapterMeta
+  section="5.3"
+  difficulty={3}
+  readingTime={16}
+  prev={{ href: "/05-mini-vllm/02-request/", title: "Request：一条生成的状态" }}
+  next={{ href: "/05-mini-vllm/04-block-manager/", title: "BlockManager：KV 块怎么发" }}
+/>
+
+## 本章目标
+
+本章解决的问题：**把 4.4 的策略落到具体函数上，并且能指出缺口。**
+
+读完应能：打开 `scheduler.py` 指出 `schedule` / `on_step_finished`；说明为何 Prefill 优先；复述测试里“新人抢在 Decode 前做 Prefill”。
+
+---
+
+## 1. 代码实现
+
+`Scheduler.schedule`：
+
+1. `waiting` 里还有 Prompt → `_schedule_prefill`；
+2. 否则 `_schedule_decode`。
+
+Prefill 路径按 FCFS 取 token，直到 `max_prefill_tokens` 或页不够或 `max_num_seqs`。每个被选中的请求 `ensure` 到 `prompt_computed + take`，并记下 `prompt_chunk`。
+
+Decode 路径：每个 running 请求 `ensure` 到 `prompt_computed + len(output_ids)`（为当前最后一个输出 token 留一格 KV），组进同一 batch。
+
+`on_step_finished` 收到 Sampler 的 id 列表：
+
+- Prefill 未读完 → 回到 waiting；
+- Prefill 读完 → `append_token`，进入 running；
+- Decode → `append_token`，够长则 `finished` 并 `free`。
+
+教学实现 **不** 把 Prefill 和 Decode 塞进同一步。生产 hybrid batch 会让 GPU 更满，但会把两段活缠在一张日志里。
+
+---
+
+## 2. 缺口（故意留下）
+
+| 缺口 | 后果 |
+| --- | --- |
+| 无抢占 / 换出 | 页耗尽时请求乾等 |
+| 无优先级 | 长 Prompt 仍可能挡短请求（只能靠切块缓解） |
+| 无 Prefix Cache | 相同系统提示算两遍 |
+| Prefill 整步独占 | 已在 Decode 的人这一步不推进 |
+
+这些写在测试和 5.7 里，避免读者把“能跑”读成“能上线”。
+
+测试 `test_scheduler_prefers_waiting_prefill`：running 里已有 Decode，再来一个 waiting，下一步 kind 必须是 `prefill`。
+
+---
+
+## 3. 本章小结
+
+1. 教学调度 = 先切块 Prefill，再 Decode。
+2. `on_step_finished` 才移动状态机。
+3. 缺口是教材，不是遗漏的 TODO 隐瞒。
+4. 下一节：`ensure` 发下去的页。

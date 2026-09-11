@@ -1,0 +1,63 @@
+---
+title: "ModelRunner：组 batch 并跑模型"
+description: "说明 Prefill / Decode 两条执行路径如何读写分页 KV，以及教学模型为什么故意没有 RoPE。"
+sidebar:
+  order: 5
+tags:
+  - mini-vllm
+  - model-runner
+difficulty: intermediate
+section: "5.5"
+readingTime: 16
+---
+
+import ChapterMeta from "../../../components/ChapterMeta.astro";
+
+<ChapterMeta
+  section="5.5"
+  difficulty={3}
+  readingTime={16}
+  prev={{ href: "/05-mini-vllm/04-block-manager/", title: "BlockManager：KV 块怎么发" }}
+  next={{ href: "/05-mini-vllm/06-sampler-stream/", title: "Sampler 与流式输出" }}
+/>
+
+## 本章目标
+
+本章解决的问题：**调度名单怎样变成一行行 logits？**
+
+读完应能：分开 Prefill 与 Decode 的 gather 边界；说明为何这里的 `ToyLM` 不是第一章那个带 RoPE 的 `ToyLM`。
+
+---
+
+## 1. 两条路径
+
+**Prefill。** 对每个请求取 `prompt_ids[start:start+chunk]`，嵌入成 `[1, T, H]`。若 `start>0`，gather 前缀 KV 作为 `past`。`forward` 返回本块新 K/V，从 `start` 写入。logits 取本块**最后**一个位置——切块未结束时这个值会被丢掉，只在最后一块送给 Sampler。
+
+**Decode。** 只嵌入 `token_ids[-1]`。`past` 长度是 `kv_written`（不含这个正要写的位置）。新 K/V 写在下标 `kv_written`。
+
+引擎对 batch 里的请求是 **Python for 循环**，不是把不同长度 pad 成一个大张量。这够证明调度，不够证明高性能。生产 GPU Model Runner 才会做真正的成批执行和 CUDA Graph。
+
+:::tip[💡 核心概念]
+Runner 负责“按块表取数 → 前向 → 写回新 KV”。它不决定算谁。
+:::
+
+---
+
+## 2. 两个 ToyLM
+
+| | `examples/ch01` | `mini_vllm.model` |
+| --- | --- | --- |
+| 目的 | 生成一个 token 的数学 | 给 Runner 一个可微不足道的网络 |
+| RoPE | 有，且与缓存路径对齐 | **无**，避免和分页课抢焦点 |
+| 权重 | 独立脚本 | Engine 持有一份 |
+
+不要断言 `Engine.generate` 与 `examples/ch01.ToyLM.generate` 输出相同。第二章的 `CachedToyLM` 才和第一章对齐。
+
+---
+
+## 3. 本章小结
+
+1. Prefill 写一块 Prompt KV；Decode 写一个新位置。
+2. 教学 Runner 按请求串行，不假装成批 GPU。
+3. 两个 ToyLM 名字相同，身份不同，必须标注。
+4. 下一节：logits 之后。

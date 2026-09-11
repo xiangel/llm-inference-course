@@ -1,0 +1,232 @@
+---
+title: "后续篇章目录"
+description: "第 0 篇到第五篇已开放。第六篇到第十六篇的章节标题已排好，写的时候按这个顺序带概念。"
+---
+
+**第 0 篇到第五篇已经开放。** 下面从第六篇起仍是章节标题：每一节只新带出紧挨着的那一层，不提前使用后面才出现的名字。
+
+主链：
+
+**一个 token → Prefill / Decode / KV → GPU → 调度与分页 → Mini-vLLM → vLLM → Kernel / 量化 / 多卡 → 引擎选型 → 高级技术 → 平台 → 性能与容量 → 万卡 → 收成。**
+
+## 已开放
+
+| 节 | 标题 |
+| --- | --- |
+| 第 0 篇 | [这本书讲什么](../00-introduction/) |
+| 1.1–1.4 | [第一篇：理解 LLM 推理](../01-transformer/01-generate-one-token/) |
+| 2.1–2.6 | [第二篇：Prefill、Decode 与 KV Cache](../02-prefill-decode-kv-cache/) |
+| 3.1–3.6 | [第三篇：GPU 与 Attention](../03-gpu/01-hardware/) |
+| 4.1–4.6 | [第四篇：Batch、调度与分页 KV](../04-batching-scheduler/) |
+| 5.1–5.7 | [第五篇：从零实现 Mini-vLLM](../05-mini-vllm/) |
+
+## 第二篇 · Prefill、Decode 与 KV Cache
+
+本篇问题：**读问题和写回答为什么快慢完全不同？中间结果为什么越写越占显存？**
+
+| 节 | 标题 | 这一节带出什么 |
+| --- | --- | --- |
+| 2.1 | [Prefill：怎样一次性读完整段 Prompt](../02-prefill-decode-kv-cache/01-prefill/) | Prefill 的计算形状 |
+| 2.2 | [Decode：怎样每次只生成一个 token](../02-prefill-decode-kv-cache/02-decode/) | Decode 一步 |
+| 2.3 | [为什么 Prefill 吃算力、Decode 吃带宽](../02-prefill-decode-kv-cache/03-compute-vs-bandwidth/) | 两段活的瓶颈分叉 |
+| 2.4 | [KV Cache 缓存的是什么、不缓存什么](../02-prefill-decode-kv-cache/04-what-kv-stores/) | K、V，不是输出 |
+| 2.5 | [KV 显存怎么乘到 70B 的 2.5 GiB](../02-prefill-decode-kv-cache/05-kv-memory/) | $L,H_{kv},d_h,S,B$ |
+| 2.6 | [GQA：为什么 70B 的 KV 头是 8 不是 64](../02-prefill-decode-kv-cache/06-gqa/) | GQA |
+
+正文：[第二篇目录](../02-prefill-decode-kv-cache/)
+
+## 第三篇 · GPU 与 Attention
+
+本篇问题：**推理卡上有什么？现有规格怎么读？快慢分叉在 GPU 上对应什么？**
+
+| 节 | 标题 | 这一节带出什么 | 状态 |
+| --- | --- | --- | --- |
+| 3.1 | [GPU 是什么、现在有哪些卡](../03-gpu/01-hardware/) | HBM、带宽、A100/H100/H200/B200 | 已开放 |
+| 3.2 | [GPU 执行一次 forward 时发生了什么](../03-gpu/02-forward/) | SM、Kernel launch | 已开放 |
+| 3.3 | [算力、带宽和算术强度](../03-gpu/03-roofline/) | Roofline | 已开放 |
+| 3.4 | [Decode 为什么容易 Memory Bound](../03-gpu/04-decode-memory-bound/) | 读权重 + 读 KV | 已开放 |
+| 3.5 | [FlashAttention 减少的是哪一次写回](../03-gpu/05-flashattention/) | FlashAttention | 已开放 |
+| 3.6 | [和 PagedAttention 的分工](../03-gpu/06-paged-vs-flash/) | 计算核 vs 显存管理 | 已开放 |
+
+## 第四篇 · Batch、调度与分页 KV
+
+本篇问题：**许多人同时来时，怎样共用 GPU 和 KV？**
+
+| 节 | 标题 | 这一节带出什么 |
+| --- | --- | --- |
+| 4.1 | [静态 batch 如何让短请求给长请求买单](../04-batching-scheduler/01-static-batch/) | 朴素 batch 的失败 |
+| 4.2 | [Continuous Batching：请求何时加入、何时离开](../04-batching-scheduler/02-continuous-batching/) | iteration 级组 batch |
+| 4.3 | [Chunked Prefill：长 Prompt 怎样切成可调度的块](../04-batching-scheduler/03-chunked-prefill/) | Token budget |
+| 4.4 | [Scheduler：这一轮算谁、算多少 token](../04-batching-scheduler/04-scheduler/) | 调度策略 |
+| 4.5 | [Paged KV：按块分配，而不是按最大长度预留](../04-batching-scheduler/05-paged-kv/) | Block / BlockTable |
+| 4.6 | [Prefix Cache、抢占与拒绝](../04-batching-scheduler/06-prefix-preempt/) | 前缀复用与过载 |
+
+正文：[第四篇目录](../04-batching-scheduler/)
+
+## 第五篇 · 从零实现 Mini-vLLM
+
+本篇问题：**前面那些块怎样收成一个能跑的教学引擎？**
+
+| 节 | 标题 | 这一节带出什么 |
+| --- | --- | --- |
+| 5.1 | [最小引擎的五块](../05-mini-vllm/01-five-blocks/) | Engine 职责边界 |
+| 5.2 | [Request：一条生成从进入到结束的状态](../05-mini-vllm/02-request/) | Request |
+| 5.3 | [Scheduler：选出这一 iteration 的 batch](../05-mini-vllm/03-scheduler/) | 教学调度 |
+| 5.4 | [BlockManager：KV 块怎么发、怎么收回](../05-mini-vllm/04-block-manager/) | 教学分页 |
+| 5.5 | [ModelRunner：组 batch 并跑模型](../05-mini-vllm/05-model-runner/) | 执行 |
+| 5.6 | [Sampler 与流式输出](../05-mini-vllm/06-sampler-stream/) | 采样与流式 |
+| 5.7 | [测一轮 TTFT / TPOT，并标明这不是 vLLM](../05-mini-vllm/07-not-vllm/) | 教学身份 |
+
+正文：[第五篇目录](../05-mini-vllm/)
+
+## 第六篇 · 走进 vLLM
+
+本篇问题：**生产引擎在 Mini-vLLM 之外多了哪些工程？**
+
+| 节 | 标题 | 这一节带出什么 |
+| --- | --- | --- |
+| 6.1 | V1 的模块边界：哪些在引擎里、哪些不在 | 引擎 ≠ 平台 |
+| 6.2 | 一次请求的生命周期 | Request lifecycle |
+| 6.3 | EngineCore 主循环 | schedule / execute / update |
+| 6.4 | Scheduler 与 KV Cache Manager | 生产调度与分页 |
+| 6.5 | GPU Model Runner 与 CUDA Graph | 执行器 |
+| 6.6 | 对照 Mini-vLLM：多出来的是工程，不是另一套数学 | 差异清单 |
+
+占位页：[第六篇](../06-vllm/)
+
+## 第七篇 · GPU Kernel 与性能优化
+
+本篇问题：**Kernel 在栈上的哪一层？怎样证明它变快了？**
+
+| 节 | 标题 | 这一节带出什么 |
+| --- | --- | --- |
+| 7.1 | Kernel 在栈上的位置：它不是调度器 | 层的边界 |
+| 7.2 | Softmax 与 Attention 的切块 | tiling |
+| 7.3 | 用 Triton 写能讲明白的 Attention | 教学 kernel |
+| 7.4 | PagedAttention kernel 的间接层 | 块表怎么进 kernel |
+| 7.5 | Profiling：把慢从 Python 里找出来 | Nsight / 计时 |
+
+占位页：[第七篇](../07-kernel/)
+
+## 第八篇 · 量化
+
+本篇问题：**少用一些位，放下的是权重、KV，还是两者？精度掉在哪？**
+
+| 节 | 标题 | 这一节带出什么 |
+| --- | --- | --- |
+| 8.1 | 量化改的是显存、带宽还是精度 | 三件事分开 |
+| 8.2 | 权重量化：GPTQ、AWQ 在压什么 | 权重量化 |
+| 8.3 | 激活与 FP8 | 低精度计算 |
+| 8.4 | KV Cache 量化 | KV 量化 |
+| 8.5 | 精度、速度、显存怎么一起看 | 权衡 |
+
+占位页：[第八篇](../08-quantization/)
+
+## 第九篇 · 多 GPU 推理
+
+本篇问题：**一张卡放不下时，切开、复制、分层各解决什么？**
+
+| 节 | 标题 | 这一节带出什么 |
+| --- | --- | --- |
+| 9.1 | 第一道墙：权重为什么一张卡放不下 | 必须多卡的原因 |
+| 9.2 | Tensor Parallel：切开一个模型 | TP |
+| 9.3 | Pipeline Parallel 与 Data Parallel | PP ≠ DP |
+| 9.4 | MoE 与 Expert Parallel | EP |
+| 9.5 | 通信走在 NVLink、IB 还是 NCCL | 互连与库 |
+
+占位页：[第九篇](../09-multi-gpu/)
+
+## 第十篇 · 主流推理引擎
+
+本篇问题：**会拆引擎之后，怎样公平地选一个？**
+
+| 节 | 标题 | 这一节带出什么 |
+| --- | --- | --- |
+| 10.1 | 对比之前先对齐：模型、GPU、batch、长度、精度 | 可比条件 |
+| 10.2 | vLLM 适合什么 | vLLM 选型 |
+| 10.3 | SGLang 适合什么 | SGLang |
+| 10.4 | TensorRT-LLM 适合什么 | TRT-LLM |
+| 10.5 | 其他引擎与怎样选型 | 决策表 |
+
+占位页：[第十篇](../10-engines/)
+
+## 第十一篇 · 高级推理技术
+
+本篇问题：**单引擎主路径之外，长上下文和高吞吐还靠什么？**
+
+| 节 | 标题 | 这一节带出什么 |
+| --- | --- | --- |
+| 11.1 | 投机解码：用小模型猜、大模型验 | Speculative decoding |
+| 11.2 | 长上下文：KV 会先把显存吃完 | 长上下文压力 |
+| 11.3 | KV 压缩与收回 | KV 压缩 |
+| 11.4 | Prefill / Decode 分离 | PD 分离 |
+| 11.5 | KV 在机器之间怎么传 | KV Transfer |
+
+占位页：[第十一篇](../11-advanced/)
+
+## 第十二篇 · 生产级推理平台
+
+本篇问题：**引擎之上，请求怎样进门、怎样限流、怎样降级？**
+
+| 节 | 标题 | 这一节带出什么 |
+| --- | --- | --- |
+| 12.1 | 引擎不是平台 | 平台边界 |
+| 12.2 | Gateway：鉴权、限流、路由 | 接入层 |
+| 12.3 | 多模型与 GPU 池 | 路由与池化 |
+| 12.4 | SLA、过载与降级 | 服务目标 |
+| 12.5 | 流式、取消与可观测性 | 运行时 |
+
+占位页：[第十二篇](../12-serving/)
+
+## 第十三篇 · 性能工程
+
+本篇问题：**数字怎样测、慢怎样定位、改完怎样证明没把别的打爆？**
+
+| 节 | 标题 | 这一节带出什么 |
+| --- | --- | --- |
+| 13.1 | Benchmark 必须写清的条件 | 可复现实验 |
+| 13.2 | 从 TTFT / TPOT / 吞吐反查一层 | 分层诊断 |
+| 13.3 | 优化闭环：改一处、验一处 | 闭环 |
+| 13.4 | 假胜利：吞吐上去、首字炸掉 | 指标耦合 |
+
+占位页：[第十三篇](../13-performance/)
+
+## 第十四篇 · 成本与容量规划
+
+本篇问题：**从参数量和 KV，怎样推到要几张卡、一百万 token 多少钱？**
+
+| 节 | 标题 | 这一节带出什么 |
+| --- | --- | --- |
+| 14.1 | 从权重和 KV 推 GPU 数 | 容量下界 |
+| 14.2 | 并发、上下文与 QPS | 负载模型 |
+| 14.3 | Cost per Million Tokens | 成本口径 |
+| 14.4 | 量化、切卡还是换引擎 | 决策 |
+
+占位页：[第十四篇](../14-capacity/)
+
+## 第十五篇 · 万卡推理系统
+
+本篇问题：**到集群尺度，新的时间单位是网络和故障，不再是一个 kernel。**
+
+| 节 | 标题 | 这一节带出什么 |
+| --- | --- | --- |
+| 15.1 | 万卡不是单卡优化乘以 10000 | 尺度切换 |
+| 15.2 | 全局调度与故障域 | 集群调度 |
+| 15.3 | Prefill 集群与 Decode 集群 | 集群级 PD |
+| 15.4 | 网络、长尾与容灾 | 故障 |
+
+占位页：[第十五篇](../15-scale/)
+
+## 第十六篇 · 构建教学生产架构
+
+本篇问题：**把全书组件收成一套能跑的练习架构——仍然不是替换 vLLM。**
+
+| 节 | 标题 | 这一节带出什么 |
+| --- | --- | --- |
+| 16.1 | 目标与非目标 | 范围 |
+| 16.2 | 接入与流式 API | Gateway |
+| 16.3 | 引擎、调度与 KV | 引擎练习 |
+| 16.4 | 监控与故障演练 | 可运维 |
+| 16.5 | 回看：从 token 到集群 | 主链收束 |
+
+占位页：[第十六篇](../16-project/)

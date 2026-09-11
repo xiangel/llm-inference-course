@@ -3,12 +3,17 @@
 与书籍章节对应的可运行教学代码。依赖：Python 3.10+、NumPy。
 
 ```bash
-python3 -m unittest tests.test_ch00_ch01 -v
+python3 -m unittest discover -s tests -v
 python3 examples/ch00/kv_cache_memory.py
 python3 examples/ch01/attention.py
 python3 examples/ch01/rope.py
 python3 examples/ch01/sampling.py
 python3 examples/ch01/generate_one_token.py
+python3 examples/ch02/prefill_decode.py
+python3 examples/ch03/gpu_spec_sheet.py
+python3 examples/ch03/roofline.py
+python3 examples/ch04/static_vs_continuous.py
+PYTHONPATH=mini-vllm python3 -m mini_vllm.engine
 ```
 
 这些实现用 NumPy 表达公式，方便在没有 GPU 的环境验证数字。它们 **不是** PyTorch 生产模型，也 **不是** vLLM 源码。
