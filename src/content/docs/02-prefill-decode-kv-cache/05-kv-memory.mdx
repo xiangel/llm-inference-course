@@ -1,0 +1,114 @@
+---
+title: "KV 显存怎么乘到 70B 的 2.5 GiB"
+description: "用 L、H_kv、d_h、S、B 和 dtype 把 KV Cache 乘成字节，对上 Llama 3.1 70B 在 8K 单请求下的 2.5 GiB。"
+sidebar:
+  order: 5
+tags:
+  - kv-cache
+  - memory
+difficulty: beginner
+section: "2.5"
+readingTime: 16
+---
+
+import ChapterMeta from "../../../components/ChapterMeta.astro";
+
+<ChapterMeta
+  section="2.5"
+  difficulty={2}
+  readingTime={16}
+  prev={{ href: "/02-prefill-decode-kv-cache/04-what-kv-stores/", title: "KV Cache 缓存的是什么" }}
+  next={{ href: "/02-prefill-decode-kv-cache/06-gqa/", title: "GQA：为什么 KV 头是 8" }}
+/>
+
+## 本章目标
+
+本章解决的问题：**口算“上下文一长显存就爆”时，乘的到底是哪几个数？**
+
+读完应能：默写字节公式；复现 Llama 3.1 70B、8K、batch=1 的 **2.5 GiB**；把 batch 和 128K 再乘一遍。
+
+---
+
+## 1. 为什么需要这个东西
+
+权重是死的：70B BF16 ≈ 130.4 GiB，开箱就能算。KV 是活的：随并发和长度涨。不会乘 KV，就无法回答“这张卡还能再接几路 8K”。
+
+第 0 篇已经用过 2.5 GiB 这个钉子数字。本节把它拆开，并声明：**这是标准稠密注意力下 K+V 的理论占用，不含碎片、CUDA Graph、激活工作区。**
+
+:::tip[💡 核心概念]
+KV 字节数按「层 × KV 头 × 头维 × 长度 × batch × 2（K 和 V）× 每元素字节」乘。漏掉其中任何一项都会错一个数量级。
+:::
+
+---
+
+## 2. 数学原理
+
+$$
+M_{\mathrm{KV}}=2\cdot L\cdot H_{\mathrm{kv}}\cdot d_h\cdot S\cdot B\cdot b
+$$
+
+| 符号 | 含义 | Llama 3.1 70B |
+| --- | --- | --- |
+| $2$ | Key 和 Value 各一份 | 2 |
+| $L$ | 层数 | 80 |
+| $H_{\mathrm{kv}}$ | **KV 头数**（不是 Q 头） | 8 |
+| $d_h$ | 头维 $=d_{\mathrm{model}}/H_q$ | $8192/64=128$ |
+| $S$ | 当前序列长度 | 8192 |
+| $B$ | batch / 并发请求（教学上先当每请求同样长） | 1 |
+| $b$ | 每元素字节，BF16/FP16 为 2 | 2 |
+
+代入：
+
+$$
+2\cdot 80\cdot 8\cdot 128\cdot 8192\cdot 1\cdot 2=2\,684\,354\,560\ \text{B}=2.5\ \text{GiB}
+$$
+
+因为 $1024^3=2^{30}$，$2\,684\,354\,560=2.5\times 2^{30}$。这是精确值，不是约数。
+
+同模型再乘：
+
+| $S$ | $B$ | KV |
+| --- | --- | --- |
+| 8K | 1 | 2.5 GiB |
+| 8K | 8 | 20 GiB |
+| 128K | 1 | 40 GiB |
+
+8B（32 层、8 个 KV 头、4096 隐层）在 8K batch=1 时恰好 **1 GiB**。教学 7B-like 全头 MHA（32 头）在 $B=4,S=1024$ 时是 **2 GiB**。
+
+---
+
+## 3. 代码实现
+
+公式在 `examples/ch00/kv_cache_memory.py`，第二篇复用，不另写一套。
+
+```bash
+python3 examples/ch00/kv_cache_memory.py
+python3 -m unittest tests.test_ch00_ch01.KvMemoryTests -v
+```
+
+`kv_cache_bytes` **不是** `nvidia-smi`。卡上还要加权重、工作区和分配器浪费。2.5 GiB 是下界里的“KV 这一项”。
+
+---
+
+## 4. 一个完整例子
+
+H200 纸面 141GB ≈ 131.3 GiB。70B BF16 权重 ≈ 130.4 GiB。只装权重约剩 0.9 GiB，**装不下** 8K 的 2.5 GiB KV。这是 3.1 已经算过的墙，现在你知道 2.5 从哪来。
+
+并发 8 路同样 8K，KV 先变成 20 GiB，还没算权重。所以“一张卡跑 70B”通常要量化或切卡，不是调一个 `max_model_len` 就能消失。
+
+---
+
+## 5. 常见误区
+
+1. **“按 Q 头数 64 去乘 70B 的 KV。”** 70B 用 GQA，$H_{\mathrm{kv}}=8$。用 64 会得到 20 GiB（下一节对照）。
+2. **“GiB 和 GB 混用。”** 全书手算用 $1024^3$。厂商显存用 $10^9$。
+3. **“公式含了碎片。”** 没有。分页分配（第四篇）减少的是预留浪费，不是这项理论字节。
+
+---
+
+## 6. 本章小结
+
+1. $M_{KV}=2 L H_{kv} d_h S B b$。
+2. Llama 3.1 70B、8K、B=1、BF16 = **2.5 GiB** 整。
+3. 并发和长度是乘数，不是添加剂。
+4. 下一节：为什么这里的头数是 8。

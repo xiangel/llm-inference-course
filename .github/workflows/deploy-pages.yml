@@ -28,7 +28,7 @@ jobs:
           python-version: "3.12"
       - run: npm ci
       - run: python3 -m pip install -r requirements-examples.txt
-      - run: python3 -m unittest tests.test_ch00_ch01 tests.test_ch03_gpu -v
+      - run: python3 -m unittest discover -s tests -v
       - name: Build
         run: npm run build
         env:

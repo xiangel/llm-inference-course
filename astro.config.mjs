@@ -126,20 +126,55 @@ export default defineConfig({
           ],
         },
         {
+          label: "第二篇 · Prefill、Decode 与 KV Cache",
+          items: [
+            { label: "2.1 Prefill：一次性读完 Prompt", slug: "02-prefill-decode-kv-cache/01-prefill" },
+            { label: "2.2 Decode：每次只生成一个 token", slug: "02-prefill-decode-kv-cache/02-decode" },
+            { label: "2.3 Prefill 吃算力、Decode 吃带宽", slug: "02-prefill-decode-kv-cache/03-compute-vs-bandwidth" },
+            { label: "2.4 KV Cache 缓存的是什么", slug: "02-prefill-decode-kv-cache/04-what-kv-stores" },
+            { label: "2.5 KV 显存怎么乘到 2.5 GiB", slug: "02-prefill-decode-kv-cache/05-kv-memory" },
+            { label: "2.6 GQA：为什么 KV 头是 8", slug: "02-prefill-decode-kv-cache/06-gqa" },
+          ],
+        },
+        {
+          label: "第三篇 · GPU 与 Attention",
+          items: [
+            { label: "3.1 GPU 是什么、现在有哪些卡", slug: "03-gpu/01-hardware" },
+            { label: "3.2 GPU 执行一次 forward", slug: "03-gpu/02-forward" },
+            { label: "3.3 算力、带宽和算术强度", slug: "03-gpu/03-roofline" },
+            { label: "3.4 Decode 为什么容易 Memory Bound", slug: "03-gpu/04-decode-memory-bound" },
+            { label: "3.5 FlashAttention 减少哪一次写回", slug: "03-gpu/05-flashattention" },
+            { label: "3.6 和 PagedAttention 的分工", slug: "03-gpu/06-paged-vs-flash" },
+          ],
+        },
+        {
+          label: "第四篇 · Batch、调度与分页 KV",
+          items: [
+            { label: "4.1 静态 batch 如何让短请求买单", slug: "04-batching-scheduler/01-static-batch" },
+            { label: "4.2 Continuous Batching", slug: "04-batching-scheduler/02-continuous-batching" },
+            { label: "4.3 Chunked Prefill", slug: "04-batching-scheduler/03-chunked-prefill" },
+            { label: "4.4 Scheduler：这一轮算谁", slug: "04-batching-scheduler/04-scheduler" },
+            { label: "4.5 Paged KV", slug: "04-batching-scheduler/05-paged-kv" },
+            { label: "4.6 Prefix Cache、抢占与拒绝", slug: "04-batching-scheduler/06-prefix-preempt" },
+          ],
+        },
+        {
+          label: "第五篇 · 从零实现 Mini-vLLM",
+          items: [
+            { label: "5.1 最小引擎的五块", slug: "05-mini-vllm/01-five-blocks" },
+            { label: "5.2 Request：一条生成的状态", slug: "05-mini-vllm/02-request" },
+            { label: "5.3 Scheduler：选出这一 iteration", slug: "05-mini-vllm/03-scheduler" },
+            { label: "5.4 BlockManager：KV 块怎么发", slug: "05-mini-vllm/04-block-manager" },
+            { label: "5.5 ModelRunner：组 batch 并跑模型", slug: "05-mini-vllm/05-model-runner" },
+            { label: "5.6 Sampler 与流式输出", slug: "05-mini-vllm/06-sampler-stream" },
+            { label: "5.7 测 TTFT / TPOT，标明不是 vLLM", slug: "05-mini-vllm/07-not-vllm" },
+          ],
+        },
+        {
           label: "后续篇章（写作中）",
           collapsed: true,
           items: [
             { label: "后续篇章目录", slug: "later-chapters" },
-            { label: "第二篇 · Prefill、Decode 与 KV Cache", slug: "02-prefill-decode-kv-cache" },
-            {
-              label: "第三篇 · GPU 与 Attention",
-              items: [
-                { label: "3.1 GPU 是什么、现在有哪些卡", slug: "03-gpu/01-hardware" },
-                { label: "3.2–3.6 执行模型与 FlashAttention", slug: "03-gpu-attention" },
-              ],
-            },
-            { label: "第四篇 · Batch、调度与分页 KV", slug: "04-batching-scheduler" },
-            { label: "第五篇 · 从零实现 Mini-vLLM", slug: "05-mini-vllm" },
             { label: "第六篇 · 走进 vLLM", slug: "06-vllm" },
             { label: "第七篇 · GPU Kernel 与性能优化", slug: "07-kernel" },
             { label: "第八篇 · 量化", slug: "08-quantization" },

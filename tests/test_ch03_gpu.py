@@ -5,6 +5,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "examples" / "ch00"))
 sys.path.insert(0, str(ROOT / "examples" / "ch03"))
+# roofline.py lives next to gpu_spec_sheet.py
 
 from kv_cache_memory import GIB, weight_bytes_approx  # noqa: E402
 from gpu_spec_sheet import (  # noqa: E402
@@ -16,6 +17,13 @@ from gpu_spec_sheet import (  # noqa: E402
     MI300X,
     fits_bf16_70b_weights,
     vendor_gb_to_gib,
+)
+from roofline import (  # noqa: E402
+    H100_DENSE_BF16_TFLOPS,
+    H100_HBM_TBS,
+    flop_per_byte_weight_gemm,
+    h100_ridge_flop_per_byte,
+    roofline_flops,
 )
 
 
@@ -48,5 +56,21 @@ class GpuSpecSheetTests(unittest.TestCase):
         self.assertEqual(MI300X.memory_vendor_gb, 192)
 
 
+class RooflineTests(unittest.TestCase):
+    def test_decode_intensity_is_one(self):
+        self.assertEqual(flop_per_byte_weight_gemm(1), 1.0)
+
+    def test_prefill_1024_is_above_h100_ridge(self):
+        ridge = h100_ridge_flop_per_byte()
+        self.assertGreater(flop_per_byte_weight_gemm(1024), ridge)
+        self.assertLess(flop_per_byte_weight_gemm(1), ridge)
+
+    def test_h100_decode_bound_is_bandwidth(self):
+        peak = H100_DENSE_BF16_TFLOPS * 1e12
+        bw = H100_HBM_TBS * 1e12
+        self.assertEqual(roofline_flops(1.0, peak, bw), bw)
+
+
 if __name__ == "__main__":
     unittest.main()
+

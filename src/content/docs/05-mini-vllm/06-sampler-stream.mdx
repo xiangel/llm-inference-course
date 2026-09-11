@@ -1,0 +1,62 @@
+---
+title: "Sampler 与流式输出"
+description: "教学 Sampler 只做贪心，流式接口在每步采样之后 yield；说明温度和 stop 为什么可以后接而不改 KV。"
+sidebar:
+  order: 6
+tags:
+  - mini-vllm
+  - sampling
+  - streaming
+difficulty: beginner
+section: "5.6"
+readingTime: 12
+---
+
+import ChapterMeta from "../../../components/ChapterMeta.astro";
+
+<ChapterMeta
+  section="5.6"
+  difficulty={2}
+  readingTime={12}
+  prev={{ href: "/05-mini-vllm/05-model-runner/", title: "ModelRunner：组 batch 并跑模型" }}
+  next={{ href: "/05-mini-vllm/07-not-vllm/", title: "测 TTFT / TPOT，并标明这不是 vLLM" }}
+/>
+
+## 本章目标
+
+本章解决的问题：**引擎在哪一步对用户可见？**
+
+读完应能：指出贪心发生在 Runner 之后；说明 `generate_stream` 为什么能逐步 yield；回想 1.4：改温度不必作废 KV。
+
+---
+
+## 1. 代码实现
+
+`mini_vllm.sampler.greedy`：1-D logits 返回一个 id，2-D `[B,V]` 返回 id 列表。Engine 统一转成 `list[int]` 再交给 `on_step_finished`。
+
+教学 Sampler **没有**温度、top-k、top-p、stop、禁词。那些属于 1.4 的数学，接到这里只是一行 `logits / τ` 再 `argmax` 或多项式采样。它们读的是本步 logits，不读块表。
+
+`generate_stream`：每 `step` 之后，把尚未 yield 的 `output_ids` 增量吐出。第一个 id 出现在 Prefill 最后一块结束时——对应 TTFT 边界。之后每个 Decode 步再吐一个，对应 TPOT 步。
+
+```python
+for tok in Engine(seed=0).generate_stream([1, 3, 4], 4):
+    print(tok)
+```
+
+测试要求同一 seed 下 stream 与 `generate` 的列表相同。
+
+---
+
+## 2. 常见误区
+
+1. **“流式需要另一个模型。”** 只需要每步有新 id。
+2. **“贪心在 GPU kernel 里。”** 教学在 CPU 上 `argmax`。生产可能融合，但仍是 logits → id。
+3. **“stop 序列要改 Attention。”** 它改的是结束条件，最多再回收页。
+
+---
+
+## 3. 本章小结
+
+1. Sampler 很薄，故意很薄。
+2. 流式 = 逐步暴露 `output_ids`。
+3. 下一节用步数谈指标，并再次写清身份。

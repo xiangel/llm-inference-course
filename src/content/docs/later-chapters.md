@@ -1,11 +1,9 @@
 ---
 title: "后续篇章目录"
-description: "第二篇到第十六篇已经排好的章节标题。正文尚未开放；写的时候按这个顺序带概念。"
+description: "第 0 篇到第五篇已开放。第六篇到第十六篇的章节标题已排好，写的时候按这个顺序带概念。"
 ---
 
-第 0 篇、第一篇和 **3.1 GPU 是什么、现在有哪些卡** 已经开放。下面是后续各篇的**章节标题**，按概念出场顺序排：每一节只新带出紧挨着的那一层，不提前使用后面才出现的名字。
-
-正文尚未开放。各篇占位页重复同一份目录，写正文时按它拆节。
+**第 0 篇到第五篇已经开放。** 下面从第六篇起仍是章节标题：每一节只新带出紧挨着的那一层，不提前使用后面才出现的名字。
 
 主链：
 
@@ -16,11 +14,11 @@ description: "第二篇到第十六篇已经排好的章节标题。正文尚未
 | 节 | 标题 |
 | --- | --- |
 | 第 0 篇 | [这本书讲什么](../00-introduction/) |
-| 1.1 | [大模型如何生成一个 Token](../01-transformer/01-generate-one-token/) |
-| 1.2 | [Transformer 在推理时做了什么](../01-transformer/02-transformer-inference/) |
-| 1.3 | [Attention 到底在计算什么](../01-transformer/03-attention/) |
-| 1.4 | [RoPE、Logits 与 Sampling](../01-transformer/04-rope-logits-sampling/) |
-| 3.1 | [GPU 是什么、现在有哪些卡](../03-gpu/01-hardware/) |
+| 1.1–1.4 | [第一篇：理解 LLM 推理](../01-transformer/01-generate-one-token/) |
+| 2.1–2.6 | [第二篇：Prefill、Decode 与 KV Cache](../02-prefill-decode-kv-cache/) |
+| 3.1–3.6 | [第三篇：GPU 与 Attention](../03-gpu/01-hardware/) |
+| 4.1–4.6 | [第四篇：Batch、调度与分页 KV](../04-batching-scheduler/) |
+| 5.1–5.7 | [第五篇：从零实现 Mini-vLLM](../05-mini-vllm/) |
 
 ## 第二篇 · Prefill、Decode 与 KV Cache
 
@@ -28,14 +26,14 @@ description: "第二篇到第十六篇已经排好的章节标题。正文尚未
 
 | 节 | 标题 | 这一节带出什么 |
 | --- | --- | --- |
-| 2.1 | Prefill：怎样一次性读完整段 Prompt | Prefill 的计算形状 |
-| 2.2 | Decode：怎样每次只生成一个 token | Decode 一步 |
-| 2.3 | 为什么 Prefill 吃算力、Decode 吃带宽 | 两段活的瓶颈分叉 |
-| 2.4 | KV Cache 缓存的是什么、不缓存什么 | K、V，不是输出 |
-| 2.5 | KV 显存怎么乘到 70B 的 2.5 GiB | $L,H_{kv},d_h,S,B$ |
-| 2.6 | GQA：为什么 70B 的 KV 头是 8 不是 64 | GQA |
+| 2.1 | [Prefill：怎样一次性读完整段 Prompt](../02-prefill-decode-kv-cache/01-prefill/) | Prefill 的计算形状 |
+| 2.2 | [Decode：怎样每次只生成一个 token](../02-prefill-decode-kv-cache/02-decode/) | Decode 一步 |
+| 2.3 | [为什么 Prefill 吃算力、Decode 吃带宽](../02-prefill-decode-kv-cache/03-compute-vs-bandwidth/) | 两段活的瓶颈分叉 |
+| 2.4 | [KV Cache 缓存的是什么、不缓存什么](../02-prefill-decode-kv-cache/04-what-kv-stores/) | K、V，不是输出 |
+| 2.5 | [KV 显存怎么乘到 70B 的 2.5 GiB](../02-prefill-decode-kv-cache/05-kv-memory/) | $L,H_{kv},d_h,S,B$ |
+| 2.6 | [GQA：为什么 70B 的 KV 头是 8 不是 64](../02-prefill-decode-kv-cache/06-gqa/) | GQA |
 
-占位页：[第二篇](../02-prefill-decode-kv-cache/)
+正文：[第二篇目录](../02-prefill-decode-kv-cache/)
 
 ## 第三篇 · GPU 与 Attention
 
@@ -44,13 +42,11 @@ description: "第二篇到第十六篇已经排好的章节标题。正文尚未
 | 节 | 标题 | 这一节带出什么 | 状态 |
 | --- | --- | --- | --- |
 | 3.1 | [GPU 是什么、现在有哪些卡](../03-gpu/01-hardware/) | HBM、带宽、A100/H100/H200/B200 | 已开放 |
-| 3.2 | GPU 执行一次 forward 时发生了什么 | SM、Kernel launch | 写作中 |
-| 3.3 | 算力、带宽和算术强度 | Roofline | 写作中 |
-| 3.4 | Decode 为什么容易 Memory Bound | 读权重 + 读 KV | 写作中 |
-| 3.5 | FlashAttention 减少的是哪一次写回 | FlashAttention | 写作中 |
-| 3.6 | 和 PagedAttention 的分工 | 计算核 vs 显存管理 | 写作中 |
-
-其余各节占位：[GPU 执行与 FlashAttention](../03-gpu-attention/)
+| 3.2 | [GPU 执行一次 forward 时发生了什么](../03-gpu/02-forward/) | SM、Kernel launch | 已开放 |
+| 3.3 | [算力、带宽和算术强度](../03-gpu/03-roofline/) | Roofline | 已开放 |
+| 3.4 | [Decode 为什么容易 Memory Bound](../03-gpu/04-decode-memory-bound/) | 读权重 + 读 KV | 已开放 |
+| 3.5 | [FlashAttention 减少的是哪一次写回](../03-gpu/05-flashattention/) | FlashAttention | 已开放 |
+| 3.6 | [和 PagedAttention 的分工](../03-gpu/06-paged-vs-flash/) | 计算核 vs 显存管理 | 已开放 |
 
 ## 第四篇 · Batch、调度与分页 KV
 
@@ -58,14 +54,14 @@ description: "第二篇到第十六篇已经排好的章节标题。正文尚未
 
 | 节 | 标题 | 这一节带出什么 |
 | --- | --- | --- |
-| 4.1 | 静态 batch 如何让短请求给长请求买单 | 朴素 batch 的失败 |
-| 4.2 | Continuous Batching：请求何时加入、何时离开 | iteration 级组 batch |
-| 4.3 | Chunked Prefill：长 Prompt 怎样切成可调度的块 | Token budget |
-| 4.4 | Scheduler：这一轮算谁、算多少 token | 调度策略 |
-| 4.5 | Paged KV：按块分配，而不是按最大长度预留 | Block / BlockTable |
-| 4.6 | Prefix Cache、抢占与拒绝 | 前缀复用与过载 |
+| 4.1 | [静态 batch 如何让短请求给长请求买单](../04-batching-scheduler/01-static-batch/) | 朴素 batch 的失败 |
+| 4.2 | [Continuous Batching：请求何时加入、何时离开](../04-batching-scheduler/02-continuous-batching/) | iteration 级组 batch |
+| 4.3 | [Chunked Prefill：长 Prompt 怎样切成可调度的块](../04-batching-scheduler/03-chunked-prefill/) | Token budget |
+| 4.4 | [Scheduler：这一轮算谁、算多少 token](../04-batching-scheduler/04-scheduler/) | 调度策略 |
+| 4.5 | [Paged KV：按块分配，而不是按最大长度预留](../04-batching-scheduler/05-paged-kv/) | Block / BlockTable |
+| 4.6 | [Prefix Cache、抢占与拒绝](../04-batching-scheduler/06-prefix-preempt/) | 前缀复用与过载 |
 
-占位页：[第四篇](../04-batching-scheduler/)
+正文：[第四篇目录](../04-batching-scheduler/)
 
 ## 第五篇 · 从零实现 Mini-vLLM
 
@@ -73,15 +69,15 @@ description: "第二篇到第十六篇已经排好的章节标题。正文尚未
 
 | 节 | 标题 | 这一节带出什么 |
 | --- | --- | --- |
-| 5.1 | 最小引擎的五块 | Engine 职责边界 |
-| 5.2 | Request：一条生成从进入到结束的状态 | Request |
-| 5.3 | Scheduler：选出这一 iteration 的 batch | 教学调度 |
-| 5.4 | BlockManager：KV 块怎么发、怎么收回 | 教学分页 |
-| 5.5 | ModelRunner：组 batch 并跑模型 | 执行 |
-| 5.6 | Sampler 与流式输出 | 采样与流式 |
-| 5.7 | 测一轮 TTFT / TPOT，并标明这不是 vLLM | 教学身份 |
+| 5.1 | [最小引擎的五块](../05-mini-vllm/01-five-blocks/) | Engine 职责边界 |
+| 5.2 | [Request：一条生成从进入到结束的状态](../05-mini-vllm/02-request/) | Request |
+| 5.3 | [Scheduler：选出这一 iteration 的 batch](../05-mini-vllm/03-scheduler/) | 教学调度 |
+| 5.4 | [BlockManager：KV 块怎么发、怎么收回](../05-mini-vllm/04-block-manager/) | 教学分页 |
+| 5.5 | [ModelRunner：组 batch 并跑模型](../05-mini-vllm/05-model-runner/) | 执行 |
+| 5.6 | [Sampler 与流式输出](../05-mini-vllm/06-sampler-stream/) | 采样与流式 |
+| 5.7 | [测一轮 TTFT / TPOT，并标明这不是 vLLM](../05-mini-vllm/07-not-vllm/) | 教学身份 |
 
-占位页：[第五篇](../05-mini-vllm/)
+正文：[第五篇目录](../05-mini-vllm/)
 
 ## 第六篇 · 走进 vLLM
 

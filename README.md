@@ -9,7 +9,7 @@
 线上（GitHub Pages）：[xiangel.github.io/llm-inference-course](https://xiangel.github.io/llm-inference-course/)  
 仓库：[github.com/xiangel/llm-inference-course](https://github.com/xiangel/llm-inference-course)
 
-当前开放：**第 0 篇**、**第一篇**，以及 **3.1 GPU 是什么、现在有哪些卡**。其余后续篇章见 [后续篇章目录](src/content/docs/later-chapters.md)。
+当前开放：**第 0 篇到第五篇**（含 Mini-vLLM 教学引擎）。第六篇起见 [后续篇章目录](src/content/docs/later-chapters.md)。
 
 ## 本地预览
 
@@ -19,7 +19,7 @@
 npm install
 npm run dev          # http://localhost:43217
 python3 -m pip install -r requirements-examples.txt
-python3 -m unittest tests.test_ch00_ch01 -v
+python3 -m unittest discover -s tests -v
 ```
 
 ```bash
@@ -37,7 +37,7 @@ npm run preview
 src/content/docs/     书籍正文（Starlight）
 examples/             可运行教学脚本（NumPy）
 tests/                对教学数字与算法的单测
-mini-vllm/            第五篇教学引擎（占位）
+mini-vllm/            第五篇教学引擎（NumPy，不是 vLLM）
 ```
 
 ## 进度
@@ -46,10 +46,10 @@ mini-vllm/            第五篇教学引擎（占位）
 | --- | --- |
 | 第 0 篇 这本书讲什么 | 已开放 |
 | 第一篇 理解 LLM 推理（1.1–1.4） | 已开放 |
-| 第二篇 Prefill、Decode 与 KV Cache | 节标题已排，正文写作中 |
-| 第三篇 GPU 与 Attention（3.1 硬件与现有卡） | 3.1 已开放；3.2–3.6 写作中 |
-| 第四篇 Batch、调度与分页 KV | 节标题已排，正文写作中 |
-| 第五篇 从零实现 Mini-vLLM | 节标题已排，正文写作中 |
+| 第二篇 Prefill、Decode 与 KV Cache（2.1–2.6） | 已开放 |
+| 第三篇 GPU 与 Attention（3.1–3.6） | 已开放 |
+| 第四篇 Batch、调度与分页 KV（4.1–4.6） | 已开放 |
+| 第五篇 从零实现 Mini-vLLM（5.1–5.7） | 已开放 |
 | 第六篇 走进 vLLM | 节标题已排，正文写作中 |
 | 第七篇 GPU Kernel 与性能优化 | 节标题已排，正文写作中 |
 | 第八篇 量化 | 节标题已排，正文写作中 |

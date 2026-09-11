@@ -1,0 +1,117 @@
+---
+title: "算力、带宽和算术强度"
+description: "用 Roofline 把峰值算力、HBM 带宽和 FLOP/byte 画在一张图上，并代入 H100 的公开峰值。"
+sidebar:
+  order: 3
+tags:
+  - roofline
+  - gpu
+  - performance
+difficulty: intermediate
+section: "3.3"
+readingTime: 18
+---
+
+import ChapterMeta from "../../../components/ChapterMeta.astro";
+
+<ChapterMeta
+  section="3.3"
+  difficulty={3}
+  readingTime={18}
+  prev={{ href: "/03-gpu/02-forward/", title: "GPU 执行一次 forward 时发生了什么" }}
+  next={{ href: "/03-gpu/04-decode-memory-bound/", title: "Decode 为什么容易 Memory Bound" }}
+/>
+
+## 本章目标
+
+本章解决的问题：**怎样判断一段计算是撞上了 Tensor Core，还是撞上了 HBM？**
+
+读完应能：写出算术强度和脊点；用 H100 稠密 BF16 989 TFLOPS 与 3.35 TB/s 判断 Decode 与 Prefill $S=1024$ 各落在哪一侧。
+
+---
+
+## 1. 为什么需要这个东西
+
+2.3 说了分叉。没有屋顶线，分叉仍是比喻。Roofline（Williams et al., 2009）给一个上界：
+
+$$
+\text{可达到的 FLOP/s} \le \min(\pi,\ I\cdot \beta)
+$$
+
+$\pi$ 是峰值算力，$\beta$ 是峰值带宽，$I$ 是算术强度（FLOP / byte）。
+
+:::tip[💡 核心概念]
+脊点 $I_\star=\pi/\beta$。强度低于脊点，再快的 Tensor Core 也要等内存；高于脊点，再高的带宽也要等计算。
+:::
+
+---
+
+## 2. 数学原理
+
+教学上，权重 GEMM 的强度取
+
+$$
+I \approx \frac{2\cdot \text{tokens}}{b}
+$$
+
+$b=2$（BF16）时 Decode 为 $1$，Prefill 为 $S$。
+
+H100 SXM，Last verified: 2026-09-10：
+
+| 量 | 值 | 来源 |
+| --- | --- | --- |
+| 稠密 BF16 $\pi$ | 989 TFLOPS | [NVIDIA H100](https://www.nvidia.com/en-us/data-center/h100/)。约 1979 的数字带 *sparsity* |
+| HBM $\beta$ | 3.35 TB/s | 与 3.1 同一张表 |
+
+$$
+I_\star \approx \frac{989\times 10^{12}}{3.35\times 10^{12}}\approx 295\ \text{FLOP/byte}
+$$
+
+- Decode $I=1<295$：上界 $\approx 3.35$ TFLOPS，远低于 989。
+- Prefill $S=1024$，$I=1024>295$：上界顶在 989 TFLOPS。
+
+这是**屋顶**，不是一次真实 kernel 的测量。真实还要算 KV 读写、非理想融合、启动开销。
+
+---
+
+## 3. 工作原理
+
+```mermaid
+flowchart LR
+  classDef memory fill:#dcecf5,stroke:#4ea1d3,color:#1a3344,stroke-width:1.5px
+  classDef compute fill:#ead89a,stroke:#c4923a,color:#2c2416,stroke-width:1.5px
+  classDef client fill:#fbf4e4,stroke:#c4923a,color:#2c2416,stroke-width:1.5px
+
+  L["低强度 Decode"]:::memory --> R["脊点 ~295"]:::client
+  R --> H["高强度 Prefill"]:::compute
+```
+
+横轴是 $I$，纵轴是 FLOP/s。左边斜线是 $I\cdot\beta$，右边横线是 $\pi$。优化要么提高 $I$（更大 batch、更长 Prefill 块、融合），要么降低必须搬运的字节（量化、更小的 KV），要么换 $\pi$ 或 $\beta$ 更高的卡。
+
+---
+
+## 4. 代码实现
+
+`examples/ch03/roofline.py` 只做这几行算术，**不是** Nsight。
+
+```bash
+python3 examples/ch03/roofline.py
+python3 -m unittest tests.test_ch03_gpu.RooflineTests -v
+```
+
+---
+
+## 5. 常见误区
+
+1. **“用带稀疏星号的 1979 去算脊点。”** 稠密推理先用 989。
+2. **“达到屋顶 = 实现完美。”** 屋顶是机器上界；实现通常在下面。
+3. **“强度是模型的固定属性。”** 它随 batch、序列、融合变化。
+
+---
+
+## 6. 本章小结
+
+1. Roofline：$\min(\pi, I\beta)$。
+2. H100 脊点约 295 FLOP/byte。
+3. Decode $I\approx 1$ 在带宽侧；长 Prefill 在算力侧。
+4. 下一节专门把 Decode 的“读权重 + 读 KV”写开。
